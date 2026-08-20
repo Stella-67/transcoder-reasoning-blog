@@ -1194,6 +1194,7 @@ code {
 
 .clt2-node,
 .clt2-latent-vector,
+.clt2-source-activation,
 .clt2-path-cell.valid,
 .clt2-sum-node,
 .clt2-mixed-node,
@@ -1209,6 +1210,8 @@ code {
 .clt2-node:focus-visible,
 .clt2-latent-vector:hover,
 .clt2-latent-vector:focus-visible,
+.clt2-source-activation:hover,
+.clt2-source-activation:focus-visible,
 .clt2-path-cell.valid:hover,
 .clt2-path-cell.valid:focus-visible,
 .clt2-sum-node:hover,
@@ -1448,7 +1451,7 @@ code {
 
 .clt2-map-head {
   display: grid;
-  grid-template-columns: 82px repeat(3, minmax(92px, 1fr)) 100px 100px 96px;
+  grid-template-columns: 82px 88px repeat(3, minmax(92px, 1fr)) 14px 44px 14px 94px 14px 96px 14px 94px;
   gap: 0.38rem;
   padding: 0.75rem 0.8rem 0.4rem;
   color: #7b807b;
@@ -1458,6 +1461,15 @@ code {
   text-transform: uppercase;
 }
 
+.clt2-map-head .target { grid-column: 1; }
+.clt2-map-head .activation { grid-column: 2; }
+.clt2-map-head .source:nth-of-type(3) { grid-column: 3; }
+.clt2-map-head .source:nth-of-type(4) { grid-column: 4; }
+.clt2-map-head .source:nth-of-type(5) { grid-column: 5; }
+.clt2-map-head .result { grid-column: 9; }
+.clt2-map-head .decoder { grid-column: 11; }
+.clt2-map-head .output { grid-column: 13; }
+
 .clt2-map {
   display: grid;
   gap: 0.48rem;
@@ -1466,7 +1478,7 @@ code {
 
 .clt2-target-row {
   display: grid;
-  grid-template-columns: 82px repeat(3, minmax(92px, 1fr)) 14px 44px 14px 94px 14px 96px 14px 94px;
+  grid-template-columns: 82px 88px repeat(3, minmax(92px, 1fr)) 14px 44px 14px 94px 14px 96px 14px 94px;
   align-items: center;
   gap: 0.38rem;
   min-width: 0;
@@ -1506,6 +1518,34 @@ code {
 }
 
 .clt2-target-row.selected .clt2-target-label strong { color: var(--c2-green); }
+
+.clt2-source-activation {
+  min-width: 0;
+  height: 66px;
+  border-color: transparent;
+  border-radius: 0;
+  background: transparent;
+  color: #74341f;
+  padding: 0.15rem 0.28rem;
+}
+
+.clt2-source-activation > .clt2-math {
+  display: block;
+  line-height: 1;
+}
+
+.clt2-source-activation:hover,
+.clt2-source-activation:focus-visible {
+  border-color: transparent;
+  box-shadow: none;
+  outline: none;
+  transform: none;
+}
+
+.clt2-source-activation:hover .clt2-vector-glyph,
+.clt2-source-activation:focus-visible .clt2-vector-glyph {
+  box-shadow: 0 0 0 2px rgba(220, 99, 57, 0.1), 0 3px 9px rgba(35, 42, 38, 0.07);
+}
 
 .clt2-path-cell {
   min-width: 0;
@@ -1663,11 +1703,19 @@ code {
 }
 
 .clt2-canvas[data-mode="direct"] .clt2-target-row {
-  grid-template-columns: 82px repeat(3, minmax(112px, 1fr)) 14px 44px 14px minmax(104px, 0.85fr);
+  grid-template-columns: 82px 88px repeat(3, minmax(112px, 1fr)) 14px 44px 14px minmax(104px, 0.85fr);
 }
 
 .clt2-canvas[data-mode="direct"] .clt2-map-head {
-  grid-template-columns: 82px repeat(3, minmax(112px, 1fr)) minmax(104px, 0.85fr);
+  grid-template-columns: 82px 88px repeat(3, minmax(112px, 1fr)) 14px 44px 14px minmax(104px, 0.85fr);
+}
+
+.clt2-canvas[data-mode="direct"] .clt2-map-head .result {
+  grid-column: 6 / 9;
+}
+
+.clt2-canvas[data-mode="direct"] .clt2-map-head .output {
+  grid-column: 9;
 }
 
 .clt2-factorization {
@@ -1835,6 +1883,7 @@ code {
 
 .clt2-residual > .clt2-math,
 .clt2-latent-vector > .clt2-math,
+.clt2-source-activation > .clt2-math,
 .clt2-mixed-node > .clt2-math,
 .clt2-output-node > .clt2-math,
 .clt2-path-cell > .clt2-math {
@@ -1853,6 +1902,7 @@ code {
 }
 
 .clt2-path-cell,
+.clt2-source-activation,
 .clt2-mixed-node,
 .clt2-decoder-node,
 .clt2-output-node {
@@ -1860,6 +1910,7 @@ code {
 }
 
 .clt2-path-cell.valid,
+.clt2-source-activation,
 .clt2-mixed-node,
 .clt2-decoder-node,
 .clt2-output-node {

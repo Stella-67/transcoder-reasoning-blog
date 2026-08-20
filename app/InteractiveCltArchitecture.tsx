@@ -292,11 +292,12 @@ export default function InteractiveCltArchitecture() {
           </div>
 
           <div className="clt2-map-head" aria-hidden="true">
-            <span>Target output</span>
-            {layers.map((layer) => <span key={layer.key}>source {layer.symbol}</span>)}
-            <span>{mode === "latent" ? "mixed latent" : "sum decoded writes"}</span>
-            {mode === "latent" && <span>base decoder</span>}
-            <span>MLP output</span>
+            <span className="target">Target output</span>
+            <span className="activation">source activation</span>
+            {layers.map((layer) => <span className="source" key={layer.key}>source {layer.symbol}</span>)}
+            <span className="result">{mode === "latent" ? "mixed latent" : "sum decoded writes"}</span>
+            {mode === "latent" && <span className="decoder">base decoder</span>}
+            <span className="output">MLP output</span>
           </div>
 
           <div className="clt2-map">
@@ -311,6 +312,11 @@ export default function InteractiveCltArchitecture() {
                   >
                     <span>reconstruct</span>
                     <strong>{targetLayer.label}</strong>
+                  </button>
+
+                  <button className="clt2-source-activation" {...inspect("latent")}>
+                    <MathTerm base="z" sub="s,t" bold />
+                    <VectorGlyph />
                   </button>
 
                   {layers.map((sourceLayer) => (
