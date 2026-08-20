@@ -1136,6 +1136,86 @@ code {
   gap: 0.75rem;
 }
 
+.clt2-encoding-row {
+  display: grid;
+  grid-template-columns: 156px minmax(132px, 1fr) 18px 86px 18px minmax(170px, 1.15fr) 18px minmax(132px, 1fr);
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 104px;
+  border: 1px solid #deded9;
+  border-radius: 3px;
+  background: #fff;
+  padding: 0.8rem 1rem;
+}
+
+.clt2-layer-picker {
+  padding-right: 0.9rem;
+  border-right: 1px solid #e1e2de;
+}
+
+.clt2-layer-picker > span {
+  display: block;
+  margin-bottom: 0.42rem;
+  color: #747974;
+  font-size: 0.52rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.clt2-layer-picker > div {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.3rem;
+}
+
+.clt2-layer-picker button {
+  height: 34px;
+  border: 1px solid #d8dad6;
+  border-radius: 999px;
+  background: #fafaf8;
+  cursor: pointer;
+  font-family: "STIX Two Math", "Cambria Math", "Times New Roman", serif;
+  font-size: 0.84rem;
+  font-style: italic;
+}
+
+.clt2-layer-picker button:hover,
+.clt2-layer-picker button:focus-visible {
+  border-color: var(--c2-orange);
+  outline: none;
+}
+
+.clt2-layer-picker button.active {
+  border-color: var(--c2-orange);
+  background: var(--c2-orange-soft);
+  color: #7a351f;
+  box-shadow: 0 0 0 2px rgba(220, 99, 57, 0.09);
+}
+
+.clt2-row-arrow {
+  color: #858985;
+  font-family: var(--serif);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.clt2-encoding-row .clt2-node,
+.clt2-encoding-row .clt2-latent-vector {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  height: 72px;
+  margin: 0;
+}
+
+.clt2-encoding-row .clt2-residual,
+.clt2-encoding-row .clt2-row-latent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
 .clt2-source-card {
   position: relative;
   min-width: 0;
@@ -2063,7 +2143,8 @@ code {
 }
 
 @media (max-width: 1060px) {
-  .clt2-source-grid { min-width: 920px; }
+  .clt2-source-grid,
+  .clt2-encoding-row { min-width: 920px; }
   .clt2-encoding { overflow-x: auto; }
   .clt2-latent-space { overflow-x: auto; }
   .clt2-latent-head,

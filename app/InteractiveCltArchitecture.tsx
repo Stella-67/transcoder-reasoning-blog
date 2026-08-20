@@ -274,16 +274,43 @@ export default function InteractiveCltArchitecture() {
             <strong>Layer-specific encoding</strong>
             <small>residual stream → sparse features</small>
           </div>
-          <div className="clt2-source-grid">
-            {layers.map((layer) => (
-              <SourceCard
-                key={layer.key}
-                layer={layer}
-                selected={layer.key === source}
-                onSelect={() => { setSource(layer.key); setPart("latent"); }}
-                inspect={inspect}
-              />
-            ))}
+          <div className="clt2-encoding-row">
+            <div className="clt2-layer-picker" role="group" aria-label="Choose source layer">
+              <span>source layer</span>
+              <div>
+                {layers.map((layer) => (
+                  <button
+                    className={layer.key === source ? "active" : ""}
+                    key={layer.key}
+                    onClick={() => { setSource(layer.key); setPart("latent"); }}
+                    aria-pressed={layer.key === source}
+                    aria-label={`Use ${layer.label} as the source layer`}
+                  >
+                    {layer.symbol}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button className="clt2-node clt2-residual" {...inspect("input")}>
+              <MathTerm base="x" sub={`${selectedSource.symbol},t`} bold />
+              <VectorGlyph tone="blue" />
+            </button>
+            <span className="clt2-row-arrow" aria-hidden="true">→</span>
+            <button className="clt2-node clt2-encoder" {...inspect("encoder")}>
+              <MathTerm base="W" sup="enc" sub={selectedSource.symbol} bold supRoman />
+              <MatrixGlyph />
+            </button>
+            <span className="clt2-row-arrow" aria-hidden="true">→</span>
+            <button className="clt2-node clt2-gate" {...inspect("gate")}>
+              <span className="clt2-gate-operator"><strong>JumpReLU</strong><i>+</i><strong>Top-K</strong></span>
+              <small>activation · sparsity</small>
+            </button>
+            <span className="clt2-row-arrow" aria-hidden="true">→</span>
+            <button className="clt2-latent-vector clt2-row-latent" {...inspect("latent")}>
+              <MathTerm base="z" sub={`${selectedSource.symbol},t`} bold />
+              <VectorGlyph />
+            </button>
           </div>
         </section>
 
