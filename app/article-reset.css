@@ -2200,7 +2200,7 @@ code {
 .clt2-route-connection.diagonal::before {
   inset: 0;
   background: linear-gradient(
-    to top right,
+    to bottom right,
     transparent calc(50% - 1px),
     currentColor calc(50% - 1px),
     currentColor calc(50% + 1px),
