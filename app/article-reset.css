@@ -2515,8 +2515,7 @@ code {
   text-align: center;
 }
 
-.clt2-decoder-stack > small strong,
-.clt2-decoder-stack > small span {
+.clt2-decoder-stack > small strong {
   display: block;
 }
 

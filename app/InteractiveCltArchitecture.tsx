@@ -386,7 +386,7 @@ export default function InteractiveCltArchitecture() {
                           <button className="clt2-decoder-node" {...inspect("decoder")}>
                             <MathTerm base="W" sup="dec" sub={targetLayer.symbol} bold supRoman />
                           </button>
-                          <small><strong>M × d</strong><span>shared across sources</span></small>
+                          <small><strong>M × d</strong></small>
                         </div>
                         <span className="clt2-flow-arrow" aria-hidden="true">→</span>
                       </>
