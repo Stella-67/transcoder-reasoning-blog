@@ -2187,6 +2187,7 @@ code {
 }
 
 .clt2-route-layers button {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2199,13 +2200,18 @@ code {
 }
 
 .clt2-route-layers button span {
+  position: absolute;
+  top: 0.55rem;
+  right: 0;
+  left: 0;
+  text-align: center;
   font-size: 0.46rem;
   letter-spacing: 0.045em;
   text-transform: uppercase;
 }
 
 .clt2-route-layers button strong {
-  margin-top: 0.18rem;
+  margin-top: 0;
   font-family: "STIX Two Math", "Cambria Math", "Times New Roman", serif;
   font-size: 0.92rem;
   font-style: italic;
