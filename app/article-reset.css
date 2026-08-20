@@ -1393,7 +1393,8 @@ code {
   align-items: center;
   justify-content: center;
   gap: 0.2rem;
-  width: 100%;
+  width: 108px;
+  max-width: 100%;
   min-height: 25px;
   margin-top: 0.3rem;
   border: 1px solid currentColor;
