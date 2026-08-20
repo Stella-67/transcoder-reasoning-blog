@@ -2308,11 +2308,11 @@ code {
 }
 
 .trajectory-atlas-heading h3 {
-  max-width: 13ch;
+  max-width: 17ch;
   margin: 0;
   color: var(--paper-bright);
   font-family: var(--serif);
-  font-size: clamp(2.3rem, 4.3vw, 5.1rem);
+  font-size: clamp(2.15rem, 3.4vw, 4.1rem);
   font-weight: 500;
   letter-spacing: -0.045em;
   line-height: 0.98;
