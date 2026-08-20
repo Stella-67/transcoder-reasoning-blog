@@ -918,22 +918,64 @@ code {
 }
 
 .clt2-math {
+  display: inline-flex;
+  align-items: baseline;
   white-space: nowrap;
   font-family: "STIX Two Math", "Cambria Math", "Times New Roman", serif;
   font-weight: 400;
   letter-spacing: 0;
+  line-height: 1;
+  vertical-align: -0.12em;
 }
 
 .clt2-math i { font-style: italic; }
-.clt2-math sup,
-.clt2-math sub {
-  position: relative;
+.clt2-math i.bold { font-weight: 700; }
+.clt2-math i.roman { font-style: normal; }
+
+.clt2-math > sup,
+.clt2-math > sub {
+  position: static;
+  margin-left: 0.04em;
   font-size: 0.68em;
-  line-height: 0;
+  line-height: 1;
+  font-style: italic;
 }
 
-.clt2-math sup { top: -0.48em; }
-.clt2-math sub { bottom: -0.12em; }
+.clt2-math > sup {
+  align-self: flex-start;
+  transform: translateY(-0.2em);
+}
+
+.clt2-math > sub {
+  align-self: flex-end;
+  transform: translateY(0.16em);
+}
+
+.clt2-math sup.roman { font-style: normal; }
+
+.clt2-script-stack {
+  display: inline-grid;
+  grid-template-rows: 1fr 1fr;
+  align-self: center;
+  margin-left: 0.05em;
+  font-size: 0.7em;
+  line-height: 0.92;
+  vertical-align: middle;
+}
+
+.clt2-script-stack > sup,
+.clt2-script-stack > sub {
+  position: static;
+  margin: 0;
+  font-size: 1em;
+  line-height: 0.92;
+  text-align: left;
+  transform: none;
+}
+
+.clt2-script-stack > sup { align-self: end; font-style: italic; }
+.clt2-script-stack > sub { align-self: start; font-style: italic; }
+.clt2-script-stack > sup.roman { font-style: normal; }
 
 .clt2-header {
   display: flex;

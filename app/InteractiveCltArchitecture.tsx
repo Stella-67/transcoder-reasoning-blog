@@ -23,12 +23,12 @@ const partCopy: Record<PartKey, { title: string; body: string; formula: React.Re
   input: {
     title: "Residual-stream input",
     body: "The frozen transformer state at token t, read independently at each source layer.",
-    formula: <MathTerm base="x" sub="s,t" />,
+    formula: <MathTerm base="x" sub="s,t" bold />,
   },
   encoder: {
     title: "Layer-specific encoder",
     body: "Each layer has its own encoder. It maps the residual stream into the same M feature coordinates.",
-    formula: <MathTerm base="W" sup="enc" sub="s" />,
+    formula: <MathTerm base="W" sup="enc" sub="s" bold supRoman />,
   },
   gate: {
     title: "Sparse activation",
@@ -38,12 +38,12 @@ const partCopy: Record<PartKey, { title: string; body: string; formula: React.Re
   latent: {
     title: "Shared latent coordinate system",
     body: "Every layer writes into the same M-dimensional coordinate system. Coordinate a denotes the same learned feature across depth.",
-    formula: <MathTerm base="z" sub="s,t" tail=" ∈ ℝᴹ" />,
+    formula: <MathTerm base="z" sub="s,t" tail=" ∈ ℝᴹ" bold />,
   },
   path: {
     title: "Cross-layer path",
     body: "A source feature may contribute to its own layer and every later output layer. The triangular map makes all admissible s → ℓ paths explicit.",
-    formula: <MathTerm base="γ" sup="s→ℓ" sub="a" />,
+    formula: <MathTerm base="γ" sup="s→ℓ" bold />,
   },
   sum: {
     title: "Gather upstream source layers",
@@ -53,26 +53,52 @@ const partCopy: Record<PartKey, { title: string; body: string; formula: React.Re
   mixed: {
     title: "Output-specific latent state",
     body: "Latent mixing first combines source activations feature by feature, while staying inside the shared M-dimensional space.",
-    formula: <MathTerm base="z̃" sub="ℓ,t" tail=" ∈ ℝᴹ" />,
+    formula: <MathTerm base="z̃" sub="ℓ,t" tail=" ∈ ℝᴹ" bold />,
   },
   decoder: {
     title: "One base decoder per output layer",
     body: "After latent mixing, all source layers share the same target-layer decoder direction for feature a.",
-    formula: <MathTerm base="W" sup="dec" sub="ℓ" />,
+    formula: <MathTerm base="W" sup="dec" sub="ℓ" bold supRoman />,
   },
   output: {
     title: "Reconstructed MLP output",
     body: "The final d-dimensional vector approximates the frozen transformer’s MLP output at the target layer.",
-    formula: <MathTerm base="m̂" sub="ℓ,t" tail=" ∈ ℝᵈ" />,
+    formula: <MathTerm base="m̂" sub="ℓ,t" tail=" ∈ ℝᵈ" bold />,
   },
 };
 
-function MathTerm({ base, sub, sup, tail }: { base: string; sub?: string; sup?: string; tail?: string }) {
+function MathTerm({
+  base,
+  sub,
+  sup,
+  tail,
+  bold = false,
+  supRoman = false,
+  romanBase = false,
+}: {
+  base: string;
+  sub?: string;
+  sup?: string;
+  tail?: string;
+  bold?: boolean;
+  supRoman?: boolean;
+  romanBase?: boolean;
+}) {
+  const scripts = sup && sub ? (
+    <span className="clt2-script-stack">
+      <sup className={supRoman ? "roman" : ""}>{sup}</sup>
+      <sub>{sub}</sub>
+    </span>
+  ) : sup ? (
+    <sup className={supRoman ? "roman" : ""}>{sup}</sup>
+  ) : sub ? (
+    <sub>{sub}</sub>
+  ) : null;
+
   return (
     <span className="clt2-math">
-      <i>{base}</i>
-      {sup && <sup>{sup}</sup>}
-      {sub && <sub>{sub}</sub>}
+      <i className={`${bold ? "bold" : ""} ${romanBase ? "roman" : ""}`.trim()}>{base}</i>
+      {scripts}
       {tail}
     </span>
   );
@@ -113,12 +139,12 @@ function SourceCard({
       </button>
       <div className="clt2-source-flow">
         <button className="clt2-node clt2-residual" {...inspect("input")}>
-          <MathTerm base="x" sub={`${layer.symbol},t`} />
+          <MathTerm base="x" sub={`${layer.symbol},t`} bold />
           <VectorGlyph tone="blue" />
         </button>
         <span aria-hidden="true">→</span>
         <button className="clt2-node clt2-encoder" {...inspect("encoder")}>
-          <MathTerm base="W" sup="enc" sub={layer.symbol} />
+          <MathTerm base="W" sup="enc" sub={layer.symbol} bold supRoman />
           <MatrixGlyph />
         </button>
         <span aria-hidden="true">→</span>
@@ -129,7 +155,7 @@ function SourceCard({
       </div>
       <span className="clt2-down-arrow" aria-hidden="true">↓</span>
       <button className="clt2-latent-vector" {...inspect("latent")} onClick={onSelect}>
-        <MathTerm base="z" sub={`${layer.symbol},t`} />
+        <MathTerm base="z" sub={`${layer.symbol},t`} bold />
         <VectorGlyph />
       </button>
     </div>
@@ -167,11 +193,11 @@ function PathCell({
       onClick={onSelect}
     >
       {mode === "latent" ? (
-        <MathTerm base="γ" sup={`${source.symbol}→${target.symbol}`} sub="a" />
+        <MathTerm base="γ" sup={`${source.symbol}→${target.symbol}`} bold />
       ) : (
-        <MathTerm base="w" sup={`${source.symbol}→${target.symbol}`} sub="a" />
+        <MathTerm base="w" sup={`${source.symbol}→${target.symbol}`} sub="a" bold />
       )}
-      <small>{mode === "latent" ? "scalar strength" : "independent d-vector"}</small>
+      <small>{mode === "latent" ? "featurewise coefficients" : "independent d-vector"}</small>
     </button>
   );
 }
@@ -194,14 +220,14 @@ export default function InteractiveCltArchitecture() {
   const detail = part === "path"
     ? mode === "latent"
       ? {
-          title: "Cross-layer scalar in latent space",
-          body: "For every active feature coordinate a, γ changes the strength of a source layer’s contribution without changing its target-layer decoder direction.",
-          formula: <span><MathTerm base="w" sup="s→ℓ" sub="a" /> = <MathTerm base="γ" sup="s→ℓ" sub="a" /> · <MathTerm base="w" sup="dec" sub="ℓ,a" /></span>,
+          title: "Featurewise cross-layer coefficients",
+          body: "Bold γ is an M-vector in the architecture. Its coordinate γₐ is the scalar that changes feature a’s source-specific strength without changing its target-layer decoder direction.",
+          formula: <span><MathTerm base="w" sup="s→ℓ" sub="a" bold /> = <MathTerm base="γ" sup="s→ℓ" sub="a" /> · <MathTerm base="w" sup="dec" sub="ℓ,a" bold supRoman /></span>,
         }
       : {
           title: "Independent cross-layer decoder",
           body: "The direct CLT learns a separate d-dimensional direction for every source layer, target layer, and feature coordinate.",
-          formula: <MathTerm base="w" sup="s→ℓ" sub="a" tail=" ∈ ℝᵈ" />,
+          formula: <MathTerm base="w" sup="s→ℓ" sub="a" tail=" ∈ ℝᵈ" bold />,
         }
     : baseDetail;
 
@@ -259,7 +285,7 @@ export default function InteractiveCltArchitecture() {
           <div className="clt2-latent-head">
             <div>
               <span>02</span>
-              <strong>Shared latent space <MathTerm base="ℝ" sup="M" /></strong>
+              <strong>Shared latent space <MathTerm base="ℝ" sup="M" romanBase /></strong>
             </div>
             <p>Coordinate <MathTerm base="a" /> names the same learned feature at every source layer.</p>
             <span className="clt2-path-count">6 admissible source → target paths</span>
@@ -308,12 +334,12 @@ export default function InteractiveCltArchitecture() {
                   {mode === "latent" && (
                     <>
                       <button className="clt2-mixed-node" {...inspect("mixed")}>
-                        <MathTerm base="z̃" sub={`${targetLayer.symbol},t`} />
+                        <MathTerm base="z̃" sub={`${targetLayer.symbol},t`} bold />
                         <VectorGlyph />
                       </button>
                       <span className="clt2-flow-arrow" aria-hidden="true">→</span>
                       <button className="clt2-decoder-node" {...inspect("decoder")}>
-                        <MathTerm base="W" sup="dec" sub={targetLayer.symbol} />
+                        <MathTerm base="W" sup="dec" sub={targetLayer.symbol} bold supRoman />
                         <MatrixGlyph direction="decode" />
                         <small>shared across sources</small>
                       </button>
@@ -322,7 +348,7 @@ export default function InteractiveCltArchitecture() {
                   )}
 
                   <button className="clt2-output-node" {...inspect("output")}>
-                    <MathTerm base="m̂" sub={`${targetLayer.symbol},t`} />
+                    <MathTerm base="m̂" sub={`${targetLayer.symbol},t`} bold />
                     <VectorGlyph tone="blue" />
                   </button>
                 </div>
@@ -334,13 +360,13 @@ export default function InteractiveCltArchitecture() {
             {mode === "latent" ? (
               <>
                 <span>The factorization</span>
-                <strong><MathTerm base="w" sup="s→ℓ" sub="a" /> = <MathTerm base="γ" sup="s→ℓ" sub="a" /> · <MathTerm base="w" sup="dec" sub="ℓ,a" /></strong>
+                <strong><MathTerm base="w" sup="s→ℓ" sub="a" bold /> = <MathTerm base="γ" sup="s→ℓ" sub="a" /> · <MathTerm base="w" sup="dec" sub="ℓ,a" bold supRoman /></strong>
                 <p>source-specific strength × one target-layer direction</p>
               </>
             ) : (
               <>
                 <span>No factorization</span>
-                <strong><MathTerm base="w" sup="s→ℓ" sub="a" /> <small>learned independently</small></strong>
+                <strong><MathTerm base="w" sup="s→ℓ" sub="a" bold /> <small>learned independently</small></strong>
                 <p>a full d-vector for every (s, ℓ, a)</p>
               </>
             )}
