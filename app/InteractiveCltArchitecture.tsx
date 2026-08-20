@@ -379,12 +379,7 @@ export default function InteractiveCltArchitecture() {
                 const targetSelected = selectedSource.rank <= targetLayer.rank;
                 return (
                   <div className={`clt2-route-target ${targetSelected ? "selected" : ""}`} key={targetLayer.key}>
-                    <div className="clt2-route-target-label" aria-label={`${targetLayer.label} reconstruction`}>
-                      <span>target</span>
-                      <strong>{targetLayer.symbol}</strong>
-                    </div>
-                    <span className="clt2-flow-arrow" aria-hidden="true">→</span>
-                    <button className="clt2-sum-node" {...inspect("sum")}>Σ</button>
+                    <button className="clt2-sum-node" {...inspect("sum")} aria-label={`Sum contributions for ${targetLayer.label}`}>Σ</button>
                     <span className="clt2-flow-arrow" aria-hidden="true">→</span>
 
                     {mode === "latent" && (

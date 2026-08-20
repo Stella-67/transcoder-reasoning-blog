@@ -2330,7 +2330,7 @@ code {
 
 .clt2-route-target {
   display: grid;
-  grid-template-columns: 54px 12px 44px 12px minmax(76px, 1fr) 12px 82px 12px minmax(86px, 1fr);
+  grid-template-columns: 44px 12px minmax(76px, 1fr) 12px 82px 12px minmax(86px, 1fr);
   align-items: center;
   gap: 0.3rem;
   min-width: 0;
@@ -2344,37 +2344,8 @@ code {
   background: rgba(239, 248, 240, 0.72);
 }
 
-.clt2-route-target-label {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  border: 1px solid rgba(41, 120, 69, 0.58);
-  border-radius: 50%;
-  background: #fff;
-  color: var(--c2-green);
-}
-
-.clt2-route-target-label span {
-  font-size: 0.42rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.clt2-route-target-label strong {
-  font-family: "STIX Two Math", "Cambria Math", "Times New Roman", serif;
-  font-size: 0.84rem;
-  font-style: italic;
-}
-
-.clt2-route-target.selected .clt2-route-target-label {
-  background: var(--c2-green-soft);
-}
-
 .clt2-canvas[data-mode="direct"] .clt2-route-target {
-  grid-template-columns: 54px 12px 44px 12px minmax(100px, 1fr);
+  grid-template-columns: 44px 12px minmax(100px, 1fr);
 }
 
 .clt2-gate-operator strong { font-size: 0.68rem; }
