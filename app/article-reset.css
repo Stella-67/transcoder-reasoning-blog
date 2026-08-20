@@ -2269,9 +2269,9 @@ code {
 
 .clt2-route-connection.from-L-to-L > button { left: 34%; }
 .clt2-route-connection.from-ell-to-L > button { left: 38%; top: 62%; }
-.clt2-route-connection.from-s-to-L > button { left: 68%; top: 42%; }
+.clt2-route-connection.from-s-to-L > button { left: 68%; top: 32%; }
 .clt2-route-connection.from-ell-to-ell > button { left: 36%; }
-.clt2-route-connection.from-s-to-ell > button { left: 65%; top: 58%; }
+.clt2-route-connection.from-s-to-ell > button { left: 65%; top: 35%; }
 .clt2-route-connection.from-s-to-s > button { left: 40%; }
 
 .clt2-route-target {
