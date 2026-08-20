@@ -2396,6 +2396,41 @@ code {
   transform: scale(0.78);
 }
 
+/* Keep the learned operators visually consistent with the summation node. */
+.clt2-encoding-row .clt2-encoder,
+.clt2-encoding-row .clt2-gate,
+.clt2-route-target .clt2-decoder-node {
+  border: 1px solid rgba(41, 120, 69, 0.58);
+  border-radius: 5px;
+  background: var(--c2-green-soft);
+}
+
+.clt2-encoding-row .clt2-encoder {
+  width: 72px;
+  justify-self: center;
+}
+
+.clt2-encoding-row .clt2-gate {
+  width: 100%;
+}
+
+.clt2-route-target .clt2-decoder-node {
+  width: 76px;
+  height: 78px;
+  justify-self: center;
+  padding: 0.2rem;
+}
+
+.clt2-encoding-row .clt2-encoder:hover,
+.clt2-encoding-row .clt2-encoder:focus-visible,
+.clt2-encoding-row .clt2-gate:hover,
+.clt2-encoding-row .clt2-gate:focus-visible,
+.clt2-route-target .clt2-decoder-node:hover,
+.clt2-route-target .clt2-decoder-node:focus-visible {
+  border-color: var(--c2-orange);
+  box-shadow: 0 4px 12px rgba(35, 42, 38, 0.08);
+}
+
 .clt2-inspector code {
   font-size: 0.84rem;
 }
