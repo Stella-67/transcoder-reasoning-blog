@@ -2368,32 +2368,44 @@ code {
 }
 
 .clt2-route-connection > button.clt2-route-decoder-block {
+  position: absolute;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  width: 64px;
+  height: 44px;
   min-width: 64px;
-  border-color: rgba(79, 131, 200, 0.42);
-  border-radius: 3px;
-  background:
-    linear-gradient(90deg, transparent 0 22%, rgba(79, 131, 200, 0.08) 22% 25%, transparent 25% 48%, rgba(79, 131, 200, 0.08) 48% 51%, transparent 51% 74%, rgba(79, 131, 200, 0.08) 74% 77%, transparent 77%),
-    #fff;
-  padding: 0.28rem 0.45rem 0.24rem;
+  border-color: rgba(41, 120, 69, 0.48);
+  border-radius: 5px;
+  background: #f4f9f4;
+  padding: 0.2rem 0.35rem;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.88);
 }
 
 .clt2-route-decoder-block > small {
-  margin-top: 0.16rem;
+  position: absolute;
+  top: -0.72rem;
+  right: 0;
+  left: 0;
+  margin-top: 0;
   color: #55749a;
   font-family: "Helvetica Neue", Inter, sans-serif;
-  font-size: 0.44rem;
+  font-size: 0.46rem;
   font-weight: 650;
   letter-spacing: 0.025em;
+  text-align: center;
+}
+
+.clt2-route-decoder-block > .clt2-math {
+  font-size: 0.78rem;
 }
 
 .clt2-route-connection > button:hover,
 .clt2-route-connection > button:focus-visible,
 .clt2-route-connection.selected > button {
   border-color: var(--c2-orange);
+  background: #fff8f1;
   color: #74341f;
   outline: none;
 }
@@ -2478,7 +2490,14 @@ code {
 }
 
 .clt2-canvas[data-mode="direct"] .clt2-route-target {
-  grid-template-columns: 44px 12px minmax(100px, 1fr);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+}
+
+.clt2-canvas[data-mode="direct"] .clt2-route-target > * {
+  flex: 0 0 auto;
 }
 
 .clt2-gate-operator strong { font-size: 0.68rem; }

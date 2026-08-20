@@ -356,7 +356,7 @@ export default function InteractiveCltArchitecture() {
                             <MathTerm base="γ" sup={`${sourceLayer.symbol}→${targetLayer.symbol}`} sub="a" bold />
                           ) : (
                             <>
-                              <MathTerm base="W" sup={`${sourceLayer.symbol}→${targetLayer.symbol}`} bold />
+                              <MathTerm base="W" sup={`${sourceLayer.symbol}→${targetLayer.symbol}`} sub="a" bold />
                               <small>M × d</small>
                             </>
                           )}
