@@ -312,7 +312,7 @@ export default function InteractiveCltArchitecture() {
             <span>target-layer reconstruction</span>
           </div>
 
-          <div className="clt2-route-map">
+          <div className="clt2-route-map" data-source={source}>
             <div className="clt2-route-layers">
               {layers.map((sourceLayer) => (
                 <button

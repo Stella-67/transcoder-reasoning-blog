@@ -2103,7 +2103,31 @@ code {
 }
 
 .clt2-route-map {
+  position: relative;
   padding: 0 0.8rem 0.8rem;
+}
+
+.clt2-route-map::before {
+  position: absolute;
+  z-index: 0;
+  left: 0.8rem;
+  width: calc(72px + 126px + 320px + 1.5rem);
+  height: 88px;
+  border: 1px solid rgba(220, 99, 57, 0.62);
+  border-radius: 3px;
+  background: rgba(255, 248, 239, 0.72);
+  content: "";
+  pointer-events: none;
+  transition: top 160ms ease;
+}
+
+.clt2-route-map[data-source="L"]::before { top: 0; }
+.clt2-route-map[data-source="ell"]::before { top: 98px; }
+.clt2-route-map[data-source="s"]::before { top: 196px; }
+
+.clt2-route-map > * {
+  position: relative;
+  z-index: 1;
 }
 
 .clt2-route-layers,
@@ -2184,6 +2208,12 @@ code {
   border-color: rgba(220, 99, 57, 0.62);
   background: rgba(255, 248, 239, 0.72);
   outline: none;
+}
+
+.clt2-route-map .clt2-route-layers button.selected,
+.clt2-route-map .clt2-route-source.selected {
+  border-color: transparent;
+  background: transparent;
 }
 
 .clt2-route-field {
