@@ -1,4 +1,5 @@
 import InteractiveAttributionGraph from "./InteractiveAttributionGraph";
+import InteractiveCltArchitecture from "./InteractiveCltArchitecture";
 import TrajectoryCaseStudies from "./TrajectoryCaseStudies";
 import {
   InteractiveAccuracyFigure,
@@ -231,20 +232,7 @@ export default function Home() {
               </p>
             </div>
 
-            <figure className="architecture-card full-bleed">
-              <img
-                src="/clt-architecture.png"
-                alt="Latent-mixing CLT architecture. Residual streams from source layers are encoded and sparsified, mixed into each target layer with source-to-target gamma coefficients, and decoded into reconstructed MLP outputs."
-                width="4418"
-                height="1582"
-              />
-              <figcaption>
-                <strong>Figure 1.</strong> Latent-mixing CLT architecture. Each layer&apos;s residual
-                stream is projected by a layer-specific encoder into a shared sparse latent space.
-                Featurewise cross-layer coefficients then mix source-layer activations before an
-                output-layer decoder reconstructs each MLP output.
-              </figcaption>
-            </figure>
+            <InteractiveCltArchitecture />
 
             <div className="prose">
               <h3>Why factor the decoder?</h3>
