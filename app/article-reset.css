@@ -1198,23 +1198,147 @@ code {
 }
 
 .clt2-encoder {
-  background: #f1f1ef;
-  font-size: 0.76rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 62px;
+  border-color: transparent;
+  background: transparent;
+  font-size: 0.7rem;
 }
 
 .clt2-gate {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  background: #f7f7f5;
-  font-size: 0.56rem;
-  line-height: 1.18;
+  display: grid;
+  grid-template-columns: 1fr 48px;
+  grid-template-rows: 1fr auto;
+  align-items: center;
+  column-gap: 0.45rem;
+  height: 62px;
+  border-color: transparent;
+  background: transparent;
+  padding: 0.2rem 0.25rem;
 }
 
-.clt2-gate small {
-  margin-top: 0.16rem;
-  color: #686d68;
-  font-size: 0.49rem;
+.clt2-encoder:hover,
+.clt2-encoder:focus-visible,
+.clt2-gate:hover,
+.clt2-gate:focus-visible,
+.clt2-decoder-node:hover,
+.clt2-decoder-node:focus-visible {
+  border-color: transparent;
+  box-shadow: none;
+  outline: none;
+  transform: none;
+}
+
+.clt2-matrix-glyph {
+  display: grid;
+  grid-template-columns: repeat(4, 5px);
+  grid-template-rows: repeat(3, 5px);
+  gap: 2px;
+  margin-top: 0.34rem;
+  padding: 0.25rem 0.32rem;
+  border-top: 1px solid rgba(41, 120, 69, 0.38);
+  border-bottom: 1px solid rgba(41, 120, 69, 0.38);
+}
+
+.clt2-matrix-glyph i {
+  width: 5px;
+  height: 5px;
+  border-radius: 1px;
+  background: rgba(41, 120, 69, 0.2);
+}
+
+.clt2-matrix-glyph i:nth-child(1),
+.clt2-matrix-glyph i:nth-child(6),
+.clt2-matrix-glyph i:nth-child(11) {
+  background: rgba(41, 120, 69, 0.78);
+}
+
+.clt2-matrix-glyph.decode {
+  grid-template-columns: repeat(3, 5px);
+  grid-template-rows: repeat(4, 5px);
+  border-color: rgba(79, 131, 200, 0.42);
+}
+
+.clt2-matrix-glyph.decode i {
+  background: rgba(79, 131, 200, 0.2);
+}
+
+.clt2-matrix-glyph.decode i:nth-child(1),
+.clt2-matrix-glyph.decode i:nth-child(6),
+.clt2-matrix-glyph.decode i:nth-child(11) {
+  background: rgba(79, 131, 200, 0.78);
+}
+
+.clt2-encoder:hover .clt2-matrix-glyph,
+.clt2-encoder:focus-visible .clt2-matrix-glyph,
+.clt2-decoder-node:hover .clt2-matrix-glyph,
+.clt2-decoder-node:focus-visible .clt2-matrix-glyph {
+  filter: saturate(1.25);
+  transform: scale(1.04);
+}
+
+.clt2-gate-label {
+  display: block;
+  text-align: left;
+}
+
+.clt2-gate-label strong {
+  display: block;
+  font-family: var(--serif);
+  font-size: 0.61rem;
+  font-weight: 600;
+}
+
+.clt2-gate-label small {
+  display: block;
+  margin-top: 0.12rem;
+  color: #777c77;
+  font-size: 0.43rem;
+  font-weight: 400;
+}
+
+.clt2-gate-glyph {
+  position: relative;
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  gap: 2px;
+  width: 48px;
+  height: 34px;
+  border-bottom: 1px solid #a9ada9;
+  padding: 0 3px;
+}
+
+.clt2-gate-glyph i {
+  width: 4px;
+  min-height: 4px;
+  border-radius: 2px 2px 0 0;
+  background: #d7d9d6;
+}
+
+.clt2-gate-glyph i.kept {
+  background: var(--c2-orange);
+}
+
+.clt2-threshold-line {
+  position: absolute;
+  right: 0;
+  bottom: 48%;
+  left: 0;
+  border-top: 1px dashed rgba(220, 99, 57, 0.62);
+}
+
+.clt2-topk-label {
+  grid-column: 1 / -1;
+  margin-top: 0.18rem;
+  color: var(--c2-orange);
+  font-size: 0.42rem;
+  letter-spacing: 0.035em;
+  text-align: right;
+  text-transform: uppercase;
 }
 
 .clt2-vector-glyph {
@@ -1495,18 +1619,24 @@ code {
 
 .clt2-decoder-node {
   min-width: 0;
-  height: 54px;
-  border-radius: 2px;
-  background: #eeeeec;
-  font-size: 0.72rem;
+  height: 68px;
+  border-color: transparent;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.15rem;
+  font-size: 0.68rem;
 }
 
 .clt2-decoder-node small {
   display: block;
-  margin-top: 0.14rem;
+  margin-top: 0.12rem;
   color: #777c77;
   font-family: "Helvetica Neue", Inter, sans-serif;
   font-size: 0.42rem;
+}
+
+.clt2-decoder-node .clt2-matrix-glyph {
+  margin: 0.28rem auto 0;
 }
 
 .clt2-canvas[data-mode="direct"] .clt2-latent-space {

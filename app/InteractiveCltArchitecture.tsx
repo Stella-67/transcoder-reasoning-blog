@@ -86,6 +86,25 @@ function VectorGlyph({ tone = "orange" }: { tone?: "orange" | "blue" }) {
   );
 }
 
+function MatrixGlyph({ direction = "encode" }: { direction?: "encode" | "decode" }) {
+  return (
+    <span className={`clt2-matrix-glyph ${direction}`} aria-hidden="true">
+      {Array.from({ length: 12 }).map((_, index) => <i key={index} />)}
+    </span>
+  );
+}
+
+function SparseGateGlyph() {
+  return (
+    <span className="clt2-gate-glyph" aria-hidden="true">
+      <span className="clt2-threshold-line" />
+      {[34, 66, 43, 86, 54, 74, 29].map((height, index) => (
+        <i key={index} className={index === 1 || index === 3 || index === 5 ? "kept" : ""} style={{ height: `${height}%` }} />
+      ))}
+    </span>
+  );
+}
+
 function SourceCard({
   layer,
   selected,
@@ -111,10 +130,13 @@ function SourceCard({
         <span aria-hidden="true">→</span>
         <button className="clt2-node clt2-encoder" {...inspect("encoder")}>
           <MathTerm base="W" sup="enc" sub={layer.symbol} />
+          <MatrixGlyph />
         </button>
         <span aria-hidden="true">→</span>
         <button className="clt2-node clt2-gate" {...inspect("gate")}>
-          <span>JumpReLU</span><small>Top-K</small>
+          <span className="clt2-gate-label"><strong>JumpReLU</strong><small>threshold</small></span>
+          <SparseGateGlyph />
+          <span className="clt2-topk-label">Top-K · 3 kept</span>
         </button>
       </div>
       <span className="clt2-down-arrow" aria-hidden="true">↓</span>
@@ -304,6 +326,7 @@ export default function InteractiveCltArchitecture() {
                       <span className="clt2-flow-arrow" aria-hidden="true">→</span>
                       <button className="clt2-decoder-node" {...inspect("decoder")}>
                         <MathTerm base="W" sup="dec" sub={targetLayer.symbol} />
+                        <MatrixGlyph direction="decode" />
                         <small>shared across sources</small>
                       </button>
                       <span className="clt2-flow-arrow" aria-hidden="true">→</span>
