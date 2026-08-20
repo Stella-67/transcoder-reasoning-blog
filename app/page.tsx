@@ -231,50 +231,20 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="architecture-card full-bleed" aria-label="Latent-mixing CLT architecture diagram">
-              <div className="architecture-heading">
-                <span>Latent-mixing CLT</span>
-                <small>One shared direction, source-specific strength</small>
-              </div>
-              <div className="architecture-flow">
-                <div className="architecture-stage">
-                  <span className="stage-label">Residual stream</span>
-                  <div className="layer-stack">
-                    <i>Layer 0</i><i>Layer 1</i><i>Layer 2</i><b>···</b><i>Layer 33</i>
-                  </div>
-                </div>
-                <span className="flow-arrow" aria-hidden="true">→</span>
-                <div className="architecture-stage feature-stage">
-                  <span className="stage-label">Sparse features</span>
-                  <div className="feature-matrix">
-                    {Array.from({ length: 24 }).map((_, index) => (
-                      <i key={index} className={index % 7 === 0 || index === 18 ? "active" : ""} />
-                    ))}
-                  </div>
-                  <code>JumpReLU + Top-K</code>
-                </div>
-                <span className="flow-arrow" aria-hidden="true">→</span>
-                <div className="architecture-stage mixing-stage">
-                  <span className="stage-label">Cross-layer mixing</span>
-                  <div className="gamma-grid">
-                    <span>γ⁰→²²</span><span>γ¹→²²</span><span>γ²→²²</span>
-                    <span>γ⁰→³³</span><span>γ¹→³³</span><span>γ²→³³</span>
-                  </div>
-                </div>
-                <span className="flow-arrow" aria-hidden="true">→</span>
-                <div className="architecture-stage">
-                  <span className="stage-label">MLP outputs</span>
-                  <div className="output-stack">
-                    <i>W<sup>dec</sup><sub>22</sub></i>
-                    <i>W<sup>dec</sup><sub>23</sub></i>
-                    <i>W<sup>dec</sup><sub>33</sub></i>
-                  </div>
-                </div>
-              </div>
-              <div className="equation">
-                w<sup>s→ℓ</sup><sub>a</sub> = γ<sup>s→ℓ</sup><sub>a</sub> · w<sup>dec</sup><sub>ℓ,a</sub>
-              </div>
-            </div>
+            <figure className="architecture-card full-bleed">
+              <img
+                src="/clt-architecture.png"
+                alt="Latent-mixing CLT architecture. Residual streams from source layers are encoded and sparsified, mixed into each target layer with source-to-target gamma coefficients, and decoded into reconstructed MLP outputs."
+                width="4418"
+                height="1582"
+              />
+              <figcaption>
+                <strong>Figure 1.</strong> Latent-mixing CLT architecture. Each layer&apos;s residual
+                stream is projected by a layer-specific encoder into a shared sparse latent space.
+                Featurewise cross-layer coefficients then mix source-layer activations before an
+                output-layer decoder reconstructs each MLP output.
+              </figcaption>
+            </figure>
 
             <div className="prose">
               <h3>Why factor the decoder?</h3>
