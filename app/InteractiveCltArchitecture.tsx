@@ -112,14 +112,6 @@ function VectorGlyph({ tone = "orange" }: { tone?: "orange" | "blue" }) {
   );
 }
 
-function MatrixGlyph({ direction = "encode" }: { direction?: "encode" | "decode" }) {
-  return (
-    <span className={`clt2-matrix-glyph ${direction}`} aria-hidden="true">
-      {Array.from({ length: 12 }).map((_, index) => <i key={index} />)}
-    </span>
-  );
-}
-
 function SourceCard({
   layer,
   selected,
@@ -145,7 +137,6 @@ function SourceCard({
         <span aria-hidden="true">→</span>
         <button className="clt2-node clt2-encoder" {...inspect("encoder")}>
           <MathTerm base="W" sup="enc" sub={layer.symbol} bold supRoman />
-          <MatrixGlyph />
         </button>
         <span aria-hidden="true">→</span>
         <button className="clt2-node clt2-gate" {...inspect("gate")}>
@@ -280,7 +271,6 @@ export default function InteractiveCltArchitecture() {
             <span className="clt2-row-arrow" aria-hidden="true">→</span>
             <button className="clt2-node clt2-encoder" {...inspect("encoder")}>
               <MathTerm base="W" sup="enc" sub="s" bold supRoman />
-              <MatrixGlyph />
             </button>
             <span className="clt2-row-arrow" aria-hidden="true">→</span>
             <button className="clt2-node clt2-gate" {...inspect("gate")}>
@@ -392,11 +382,12 @@ export default function InteractiveCltArchitecture() {
                           <VectorGlyph />
                         </button>
                         <span className="clt2-flow-arrow" aria-hidden="true">→</span>
-                        <button className="clt2-decoder-node" {...inspect("decoder")}>
-                          <MathTerm base="W" sup="dec" sub={targetLayer.symbol} bold supRoman />
-                          <MatrixGlyph direction="decode" />
+                        <div className="clt2-decoder-stack">
+                          <button className="clt2-decoder-node" {...inspect("decoder")}>
+                            <MathTerm base="W" sup="dec" sub={targetLayer.symbol} bold supRoman />
+                          </button>
                           <small><strong>M × d</strong><span>shared across sources</span></small>
-                        </button>
+                        </div>
                         <span className="clt2-flow-arrow" aria-hidden="true">→</span>
                       </>
                     )}

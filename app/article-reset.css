@@ -2477,7 +2477,8 @@ code {
 }
 
 .clt2-encoding-row .clt2-encoder {
-  width: 72px;
+  width: 44px;
+  height: 44px;
   justify-self: center;
 }
 
@@ -2486,10 +2487,39 @@ code {
 }
 
 .clt2-route-target .clt2-decoder-node {
-  width: 76px;
-  height: 78px;
+  width: 44px;
+  height: 44px;
   justify-self: center;
   padding: 0.2rem;
+}
+
+.clt2-decoder-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+.clt2-decoder-stack > small {
+  display: block;
+  margin-top: 0.2rem;
+  color: #777c77;
+  font-family: "Helvetica Neue", Inter, sans-serif;
+  font-size: 0.5rem;
+  line-height: 1;
+  text-align: center;
+}
+
+.clt2-decoder-stack > small strong,
+.clt2-decoder-stack > small span {
+  display: block;
+}
+
+.clt2-decoder-stack > small strong {
+  margin-bottom: 0.12rem;
+  color: #55749a;
+  letter-spacing: 0.025em;
 }
 
 .clt2-encoding-row .clt2-encoder:hover,
