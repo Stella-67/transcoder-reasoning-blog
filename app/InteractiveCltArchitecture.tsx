@@ -306,12 +306,27 @@ export default function InteractiveCltArchitecture() {
           </div>
 
           <div className="clt2-route-head" aria-hidden="true">
+            <span>source layer</span>
             <span>source activations</span>
             <span>{mode === "latent" ? "featurewise cross-layer coefficients" : "independent cross-layer directions"}</span>
             <span>target-layer reconstruction</span>
           </div>
 
           <div className="clt2-route-map">
+            <div className="clt2-route-layers">
+              {layers.map((sourceLayer) => (
+                <button
+                  className={sourceLayer.key === source ? "selected" : ""}
+                  key={sourceLayer.key}
+                  onClick={() => { setSource(sourceLayer.key); setPart("latent"); }}
+                  aria-pressed={sourceLayer.key === source}
+                >
+                  <span>Layer</span>
+                  <strong>{sourceLayer.symbol}</strong>
+                </button>
+              ))}
+            </div>
+
             <div className="clt2-route-sources">
               {layers.map((sourceLayer) => (
                 <button
@@ -320,7 +335,6 @@ export default function InteractiveCltArchitecture() {
                   onClick={() => { setSource(sourceLayer.key); setPart("latent"); }}
                   aria-pressed={sourceLayer.key === source}
                 >
-                  <span>{sourceLayer.label}</span>
                   <MathTerm base="z" sub={`${sourceLayer.symbol},t`} bold />
                   <VectorGlyph />
                 </button>

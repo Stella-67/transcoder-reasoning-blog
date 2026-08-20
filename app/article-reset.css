@@ -2075,7 +2075,7 @@ code {
 .clt2-route-head,
 .clt2-route-map {
   display: grid;
-  grid-template-columns: 142px minmax(300px, 1fr) minmax(470px, 1.25fr);
+  grid-template-columns: 72px 126px minmax(300px, 1fr) minmax(470px, 1.25fr);
   gap: 1rem;
 }
 
@@ -2093,11 +2093,46 @@ code {
   padding: 0 0.8rem 0.8rem;
 }
 
+.clt2-route-layers,
 .clt2-route-sources,
 .clt2-route-targets {
   display: grid;
   grid-template-rows: repeat(3, 88px);
   gap: 10px;
+}
+
+.clt2-route-layers button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: #5d625d;
+  cursor: pointer;
+}
+
+.clt2-route-layers button span {
+  font-size: 0.46rem;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.clt2-route-layers button strong {
+  margin-top: 0.18rem;
+  font-family: "STIX Two Math", "Cambria Math", "Times New Roman", serif;
+  font-size: 0.92rem;
+  font-style: italic;
+}
+
+.clt2-route-layers button:hover,
+.clt2-route-layers button:focus-visible,
+.clt2-route-layers button.selected {
+  border-color: rgba(220, 99, 57, 0.55);
+  background: rgba(255, 248, 239, 0.72);
+  color: #74341f;
+  outline: none;
 }
 
 .clt2-route-source {
@@ -2112,13 +2147,6 @@ code {
   color: #74341f;
   cursor: pointer;
   padding: 0.35rem 0.5rem;
-}
-
-.clt2-route-source > span {
-  margin-bottom: 0.18rem;
-  color: #686d68;
-  font-size: 0.54rem;
-  font-weight: 600;
 }
 
 .clt2-route-source > .clt2-math {
