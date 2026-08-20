@@ -2501,6 +2501,53 @@ code {
   flex: 0 0 auto;
 }
 
+/* Give the unfactorized decoder fan-out enough room to remain legible. */
+.clt2-canvas[data-mode="direct"] .clt2-route-head,
+.clt2-canvas[data-mode="direct"] .clt2-route-map {
+  grid-template-columns: 72px 126px 440px minmax(360px, 1fr);
+}
+
+.clt2-canvas[data-mode="direct"] .clt2-route-connection.from-ell-to-L::before,
+.clt2-canvas[data-mode="direct"] .clt2-route-connection.from-s-to-ell::before {
+  width: 447.21px;
+  transform: rotate(-10.3deg);
+}
+
+.clt2-canvas[data-mode="direct"] .clt2-route-connection.from-s-to-L::before {
+  width: 468.19px;
+  transform: rotate(-19.98deg);
+}
+
+.clt2-canvas[data-mode="direct"] .clt2-route-connection.from-ell-to-L::after,
+.clt2-canvas[data-mode="direct"] .clt2-route-connection.from-s-to-ell::after {
+  transform: rotate(35deg);
+}
+
+.clt2-canvas[data-mode="direct"] .clt2-route-connection.from-s-to-L::after {
+  transform: rotate(25deg);
+}
+
+.clt2-canvas[data-mode="direct"] .clt2-route-connection.from-L-to-L > button,
+.clt2-canvas[data-mode="direct"] .clt2-route-connection.from-ell-to-ell > button,
+.clt2-canvas[data-mode="direct"] .clt2-route-connection.from-s-to-s > button {
+  left: 28%;
+}
+
+.clt2-canvas[data-mode="direct"] .clt2-route-connection.from-ell-to-L > button {
+  left: 50%;
+  top: 62%;
+}
+
+.clt2-canvas[data-mode="direct"] .clt2-route-connection.from-s-to-L > button {
+  left: 78%;
+  top: 30%;
+}
+
+.clt2-canvas[data-mode="direct"] .clt2-route-connection.from-s-to-ell > button {
+  left: 58%;
+  top: 35%;
+}
+
 .clt2-gate-operator strong { font-size: 0.68rem; }
 .clt2-gate-operator i { font-size: 0.76rem; }
 .clt2-gate > small { font-size: 0.52rem; }
