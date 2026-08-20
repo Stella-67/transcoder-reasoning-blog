@@ -2504,27 +2504,27 @@ code {
 /* Give the unfactorized decoder fan-out enough room to remain legible. */
 .clt2-canvas[data-mode="direct"] .clt2-route-head,
 .clt2-canvas[data-mode="direct"] .clt2-route-map {
-  grid-template-columns: 72px 126px 440px minmax(360px, 1fr);
+  grid-template-columns: 72px 126px 500px minmax(300px, 1fr);
 }
 
 .clt2-canvas[data-mode="direct"] .clt2-route-connection.from-ell-to-L::before,
 .clt2-canvas[data-mode="direct"] .clt2-route-connection.from-s-to-ell::before {
-  width: 447.21px;
-  transform: rotate(-10.3deg);
+  width: 506.36px;
+  transform: rotate(-9.09deg);
 }
 
 .clt2-canvas[data-mode="direct"] .clt2-route-connection.from-s-to-L::before {
-  width: 468.19px;
-  transform: rotate(-19.98deg);
+  width: 524.98px;
+  transform: rotate(-17.74deg);
 }
 
 .clt2-canvas[data-mode="direct"] .clt2-route-connection.from-ell-to-L::after,
 .clt2-canvas[data-mode="direct"] .clt2-route-connection.from-s-to-ell::after {
-  transform: rotate(35deg);
+  transform: rotate(36deg);
 }
 
 .clt2-canvas[data-mode="direct"] .clt2-route-connection.from-s-to-L::after {
-  transform: rotate(25deg);
+  transform: rotate(27deg);
 }
 
 .clt2-canvas[data-mode="direct"] .clt2-route-connection.from-L-to-L > button,
