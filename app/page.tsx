@@ -234,6 +234,26 @@ export default function Home() {
 
             <InteractiveCltArchitecture />
 
+            <figure className="architecture-reference full-bleed">
+              <div className="architecture-reference-frame">
+                <img
+                  src="/original-gemma-direct-effect.png"
+                  alt="Diagram of the original Gemma-3-4B-IT transformer showing a source feature writing across layers and the gradient paths into a target residual-stream position."
+                  width="1362"
+                  height="758"
+                  loading="lazy"
+                />
+              </div>
+              <figcaption>
+                <span>Original-model reference</span>
+                <p>
+                  A source feature at position <i>t</i><sub>s</sub> writes to multiple downstream
+                  layers; gradients at target position <i>t</i><sub>r</sub> measure how those writes
+                  influence the target residual stream.
+                </p>
+              </figcaption>
+            </figure>
+
             <div className="prose">
               <h3>Why factor the decoder?</h3>
               <p>

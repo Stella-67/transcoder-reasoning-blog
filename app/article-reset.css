@@ -437,6 +437,46 @@ code {
   text-transform: uppercase;
 }
 
+.architecture-reference {
+  margin: 1.65rem 0 2.4rem;
+}
+
+.architecture-reference-frame {
+  overflow: hidden;
+  border: 1px solid var(--rule);
+  background: #fff;
+  padding: clamp(0.7rem, 1.5vw, 1.2rem);
+}
+
+.architecture-reference img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.architecture-reference figcaption {
+  display: grid;
+  grid-template-columns: 9.5rem minmax(0, 48rem);
+  gap: 1rem;
+  margin-top: 0.75rem;
+  color: var(--ink-soft);
+  font-family: var(--sans);
+  font-size: 0.72rem;
+  line-height: 1.55;
+}
+
+.architecture-reference figcaption span {
+  color: var(--ink);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.architecture-reference figcaption p {
+  margin: 0;
+}
+
 /* Interactive CLT architecture */
 .clt-explorer {
   --clt-blue: #3f7fd3;
