@@ -2498,21 +2498,29 @@ code {
 }
 
 .clt2-decoder-stack {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-width: 0;
+  justify-self: center;
+  width: 44px;
+  height: 44px;
 }
 
 .clt2-decoder-stack > small {
+  position: absolute;
+  bottom: calc(100% + 0.2rem);
+  left: 50%;
   display: block;
-  margin-bottom: 0.2rem;
+  margin: 0;
   color: #777c77;
   font-family: "Helvetica Neue", Inter, sans-serif;
   font-size: 0.5rem;
   line-height: 1;
   text-align: center;
+  white-space: nowrap;
+  transform: translateX(-50%);
 }
 
 .clt2-decoder-stack > small strong {
