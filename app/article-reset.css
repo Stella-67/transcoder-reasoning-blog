@@ -1934,11 +1934,15 @@ code {
 
 .clt2-section-label small,
 .clt2-latent-head p,
-.clt2-factorization p,
 .clt2-inspector p,
 .clt2-explorer > figcaption {
   font-size: 0.65rem;
   line-height: 1.5;
+}
+
+.clt2-factorization p {
+  font-size: 0.8rem;
+  line-height: 1.35;
 }
 
 .clt2-source-flow {
