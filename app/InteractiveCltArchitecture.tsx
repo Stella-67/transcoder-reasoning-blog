@@ -220,8 +220,6 @@ export default function InteractiveCltArchitecture() {
     onClick: () => setPart(next),
   });
 
-  const selectedSource = layers.find((layer) => layer.key === source) ?? layers[2];
-  const selectedTarget = layers.find((layer) => layer.key === target) ?? layers[0];
   const baseDetail = partCopy[part];
   const detail = part === "path"
     ? mode === "latent"
@@ -275,30 +273,13 @@ export default function InteractiveCltArchitecture() {
             <small>residual stream → sparse features</small>
           </div>
           <div className="clt2-encoding-row">
-            <div className="clt2-layer-picker" role="group" aria-label="Choose source layer">
-              <span>source layer</span>
-              <div>
-                {layers.map((layer) => (
-                  <button
-                    className={layer.key === source ? "active" : ""}
-                    key={layer.key}
-                    onClick={() => { setSource(layer.key); setPart("latent"); }}
-                    aria-pressed={layer.key === source}
-                    aria-label={`Use ${layer.label} as the source layer`}
-                  >
-                    {layer.symbol}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             <button className="clt2-node clt2-residual" {...inspect("input")}>
-              <MathTerm base="x" sub={`${selectedSource.symbol},t`} bold />
+              <MathTerm base="x" sub="s,t" bold />
               <VectorGlyph tone="blue" />
             </button>
             <span className="clt2-row-arrow" aria-hidden="true">→</span>
             <button className="clt2-node clt2-encoder" {...inspect("encoder")}>
-              <MathTerm base="W" sup="enc" sub={selectedSource.symbol} bold supRoman />
+              <MathTerm base="W" sup="enc" sub="s" bold supRoman />
               <MatrixGlyph />
             </button>
             <span className="clt2-row-arrow" aria-hidden="true">→</span>
@@ -308,7 +289,7 @@ export default function InteractiveCltArchitecture() {
             </button>
             <span className="clt2-row-arrow" aria-hidden="true">→</span>
             <button className="clt2-latent-vector clt2-row-latent" {...inspect("latent")}>
-              <MathTerm base="z" sub={`${selectedSource.symbol},t`} bold />
+              <MathTerm base="z" sub="s,t" bold />
               <VectorGlyph />
             </button>
           </div>
