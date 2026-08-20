@@ -2507,7 +2507,7 @@ code {
 
 .clt2-decoder-stack > small {
   display: block;
-  margin-top: 0.2rem;
+  margin-bottom: 0.2rem;
   color: #777c77;
   font-family: "Helvetica Neue", Inter, sans-serif;
   font-size: 0.5rem;
@@ -2520,7 +2520,6 @@ code {
 }
 
 .clt2-decoder-stack > small strong {
-  margin-bottom: 0.12rem;
   color: #55749a;
   letter-spacing: 0.025em;
 }
