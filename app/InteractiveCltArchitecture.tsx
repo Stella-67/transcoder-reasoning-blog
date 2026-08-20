@@ -211,8 +211,8 @@ function PathCell({
 export default function InteractiveCltArchitecture() {
   const [mode, setMode] = useState<Mode>("latent");
   const [source, setSource] = useState<LayerKey>("s");
-  const [target, setTarget] = useState<LayerKey>("L");
   const [part, setPart] = useState<PartKey>("latent");
+  const selectedSource = layers.find((layer) => layer.key === source)!;
 
   const inspect = (next: PartKey) => ({
     onMouseEnter: () => setPart(next),
@@ -241,7 +241,7 @@ export default function InteractiveCltArchitecture() {
         <div>
           <span className="clt2-kicker">Figure 1 · interactive architecture</span>
           <h3 id="clt2-title">One feature space, many layers</h3>
-          <p>Trace a source column and a target row to see how cross-layer decoding is factorized.</p>
+          <p>Select a source layer to reveal every admissible downstream reconstruction.</p>
         </div>
         <div className="clt2-mode" role="group" aria-label="Compare CLT parameterizations">
           <button className={mode === "direct" ? "active" : ""} onClick={() => { setMode("direct"); setPart("path"); }}>
@@ -346,14 +346,14 @@ export default function InteractiveCltArchitecture() {
                 layers
                   .filter((sourceLayer) => sourceLayer.rank <= targetLayer.rank)
                   .map((sourceLayer) => {
-                    const routeSelected = sourceLayer.key === source && targetLayer.key === target;
+                    const routeSelected = sourceLayer.key === source;
                     return (
                       <div
                         className={`clt2-route-connection from-${sourceLayer.key}-to-${targetLayer.key} ${sourceLayer.key === targetLayer.key ? "horizontal" : "diagonal"} ${routeSelected ? "selected" : ""}`}
                         key={`${sourceLayer.key}-${targetLayer.key}`}
                       >
                         <button
-                          onClick={() => { setSource(sourceLayer.key); setTarget(targetLayer.key); setPart("path"); }}
+                          onClick={() => { setSource(sourceLayer.key); setPart("path"); }}
                           onMouseEnter={() => setPart("path")}
                           onFocus={() => setPart("path")}
                           aria-label={`${mode === "latent" ? "Coefficient" : "Decoder direction"} from ${sourceLayer.label} to ${targetLayer.label}`}
@@ -372,17 +372,13 @@ export default function InteractiveCltArchitecture() {
 
             <div className="clt2-route-targets">
               {layers.map((targetLayer) => {
-                const targetSelected = targetLayer.key === target;
+                const targetSelected = selectedSource.rank <= targetLayer.rank;
                 return (
                   <div className={`clt2-route-target ${targetSelected ? "selected" : ""}`} key={targetLayer.key}>
-                    <button
-                      className="clt2-route-target-label"
-                      onClick={() => { setTarget(targetLayer.key); setPart("sum"); }}
-                      aria-pressed={targetSelected}
-                    >
+                    <div className="clt2-route-target-label" aria-label={`${targetLayer.label} reconstruction`}>
                       <span>target</span>
                       <strong>{targetLayer.symbol}</strong>
-                    </button>
+                    </div>
                     <span className="clt2-flow-arrow" aria-hidden="true">→</span>
                     <button className="clt2-sum-node" {...inspect("sum")}>Σ</button>
                     <span className="clt2-flow-arrow" aria-hidden="true">→</span>

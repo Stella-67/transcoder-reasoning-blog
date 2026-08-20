@@ -2301,7 +2301,6 @@ code {
   border-radius: 50%;
   background: #fff;
   color: var(--c2-green);
-  cursor: pointer;
 }
 
 .clt2-route-target-label span {
@@ -2316,10 +2315,8 @@ code {
   font-style: italic;
 }
 
-.clt2-route-target-label:hover,
-.clt2-route-target-label:focus-visible {
+.clt2-route-target.selected .clt2-route-target-label {
   background: var(--c2-green-soft);
-  outline: none;
 }
 
 .clt2-canvas[data-mode="direct"] .clt2-route-target {
