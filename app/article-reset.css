@@ -2159,7 +2159,7 @@ code {
   z-index: 0;
   left: 0.8rem;
   width: calc(72px + 126px + 0.75rem);
-  height: 80px;
+  height: 72px;
   border: 1px solid rgba(220, 99, 57, 0.62);
   border-radius: 3px;
   background: rgba(255, 248, 239, 0.72);
@@ -2169,8 +2169,8 @@ code {
 }
 
 .clt2-route-map[data-source="L"]::before { top: 0; }
-.clt2-route-map[data-source="ell"]::before { top: 88px; }
-.clt2-route-map[data-source="s"]::before { top: 176px; }
+.clt2-route-map[data-source="ell"]::before { top: 80px; }
+.clt2-route-map[data-source="s"]::before { top: 160px; }
 
 .clt2-route-map > * {
   position: relative;
@@ -2181,7 +2181,7 @@ code {
 .clt2-route-sources,
 .clt2-route-targets {
   display: grid;
-  grid-template-rows: repeat(3, 80px);
+  grid-template-rows: repeat(3, 72px);
   gap: 8px;
   min-width: 0;
 }
@@ -2197,6 +2197,7 @@ code {
   background: transparent;
   color: #5d625d;
   cursor: pointer;
+  padding-top: 0.75rem;
 }
 
 .clt2-route-layers button span {
@@ -2238,7 +2239,7 @@ code {
   background: transparent;
   color: #74341f;
   cursor: pointer;
-  padding: 0.35rem 0.5rem;
+  padding: 0.75rem 0.5rem 0;
 }
 
 .clt2-route-source > .clt2-math {
@@ -2273,7 +2274,7 @@ code {
 
 .clt2-route-field {
   position: relative;
-  height: 256px;
+  height: 232px;
   min-width: 0;
 }
 
@@ -2332,22 +2333,22 @@ code {
 
 .clt2-route-connection.from-ell-to-L::before,
 .clt2-route-connection.from-s-to-ell::before {
-  width: 331.88px;
-  transform: rotate(-15.38deg);
+  width: 329.85px;
+  transform: rotate(-14.04deg);
 }
 
 .clt2-route-connection.from-s-to-L::before {
-  width: 365.27px;
-  transform: rotate(-28.81deg);
+  width: 357.77px;
+  transform: rotate(-26.57deg);
 }
 
 .clt2-route-connection.from-ell-to-L::after,
 .clt2-route-connection.from-s-to-ell::after {
-  transform: rotate(30deg);
+  transform: rotate(31deg);
 }
 
 .clt2-route-connection.from-s-to-L::after {
-  transform: rotate(16deg);
+  transform: rotate(18deg);
 }
 
 .clt2-route-connection > button {
@@ -2417,12 +2418,12 @@ code {
   color: var(--c2-orange);
 }
 
-.clt2-route-connection.from-L-to-L { top: 26px; }
-.clt2-route-connection.from-ell-to-ell { top: 114px; }
-.clt2-route-connection.from-s-to-s { top: 202px; }
-.clt2-route-connection.from-ell-to-L { top: 40px; height: 88px; }
-.clt2-route-connection.from-s-to-L { top: 40px; height: 176px; }
-.clt2-route-connection.from-s-to-ell { top: 128px; height: 88px; }
+.clt2-route-connection.from-L-to-L { top: 28px; }
+.clt2-route-connection.from-ell-to-ell { top: 108px; }
+.clt2-route-connection.from-s-to-s { top: 188px; }
+.clt2-route-connection.from-ell-to-L { top: 42px; height: 80px; }
+.clt2-route-connection.from-s-to-L { top: 42px; height: 160px; }
+.clt2-route-connection.from-s-to-ell { top: 122px; height: 80px; }
 
 .clt2-route-connection.from-L-to-L > button { left: 34%; }
 .clt2-route-connection.from-ell-to-L > button { left: 38%; top: 62%; }
@@ -2439,7 +2440,7 @@ code {
   min-width: 0;
   border: 1px solid transparent;
   border-radius: 3px;
-  padding: 0.28rem;
+  padding: 0.75rem 0.28rem 0;
 }
 
 .clt2-route-target .clt2-mixed-node,
