@@ -2088,8 +2088,8 @@ code {
 .clt2-route-head,
 .clt2-route-map {
   display: grid;
-  grid-template-columns: 72px 126px 380px minmax(560px, 1fr);
-  gap: 1rem;
+  grid-template-columns: 72px 126px 320px minmax(0, 1fr);
+  gap: 0.75rem;
 }
 
 .clt2-route-head {
@@ -2112,6 +2112,7 @@ code {
   display: grid;
   grid-template-rows: repeat(3, 88px);
   gap: 10px;
+  min-width: 0;
 }
 
 .clt2-route-layers button {
@@ -2240,18 +2241,22 @@ code {
 
 .clt2-route-connection.from-ell-to-L::before,
 .clt2-route-connection.from-s-to-ell::before {
-  width: 392.43px;
-  transform: rotate(-14.47deg);
+  width: 334.67px;
+  transform: rotate(-17.03deg);
 }
 
 .clt2-route-connection.from-s-to-L::before {
-  width: 427.57px;
-  transform: rotate(-27.29deg);
+  width: 375.25px;
+  transform: rotate(-31.50deg);
 }
 
 .clt2-route-connection.from-ell-to-L::after,
 .clt2-route-connection.from-s-to-ell::after {
-  transform: rotate(31deg);
+  transform: rotate(28deg);
+}
+
+.clt2-route-connection.from-s-to-L::after {
+  transform: rotate(14deg);
 }
 
 .clt2-route-connection > button {
@@ -2409,7 +2414,7 @@ code {
   .clt2-latent-head,
   .clt2-route-head,
   .clt2-route-map,
-  .clt2-factorization { min-width: 1200px; }
+  .clt2-factorization { min-width: 1100px; }
 }
 
 @media (max-width: 760px) {
