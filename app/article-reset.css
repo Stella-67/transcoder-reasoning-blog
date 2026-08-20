@@ -1792,9 +1792,11 @@ code {
   letter-spacing: -0.035em;
 }
 
-.clt2-header p,
+.clt2-header p { font-size: 0.78rem; }
+
 .clt2-summary p {
-  font-size: 0.72rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
 }
 
 .clt2-section-label strong,
@@ -1802,7 +1804,7 @@ code {
 .clt2-source-title span,
 .clt2-target-label strong,
 .clt2-inspector strong {
-  font-size: 0.7rem;
+  font-size: 0.84rem;
   font-weight: 600;
 }
 
@@ -1811,24 +1813,24 @@ code {
 .clt2-factorization p,
 .clt2-inspector p,
 .clt2-explorer > figcaption {
-  font-size: 0.6rem;
+  font-size: 0.65rem;
   line-height: 1.5;
 }
 
 .clt2-source-flow {
   align-items: center;
-  min-height: 58px;
+  min-height: 66px;
 }
 
 .clt2-node,
 .clt2-residual,
 .clt2-encoder,
 .clt2-gate {
-  height: 58px;
+  height: 66px;
 }
 
 .clt2-encoder {
-  font-size: 0.68rem;
+  font-size: 0.84rem;
 }
 
 .clt2-residual > .clt2-math,
@@ -1837,18 +1839,18 @@ code {
 .clt2-decoder-node > .clt2-math,
 .clt2-output-node > .clt2-math,
 .clt2-path-cell > .clt2-math {
-  font-size: 0.72rem;
+  font-size: 0.88rem;
 }
 
 .clt2-target-row {
-  min-height: 72px;
+  min-height: 82px;
 }
 
 .clt2-path-cell,
 .clt2-mixed-node,
 .clt2-decoder-node,
 .clt2-output-node {
-  height: 58px;
+  height: 66px;
 }
 
 .clt2-path-cell.valid,
@@ -1863,25 +1865,38 @@ code {
 
 .clt2-path-cell.valid small,
 .clt2-decoder-node small {
-  margin-top: 0.22rem;
-  font-size: 0.44rem;
+  margin-top: 0.25rem;
+  font-size: 0.5rem;
   line-height: 1;
+}
+
+.clt2-path-cell.valid small { font-size: 0.5rem; }
+
+.clt2-gate-operator strong { font-size: 0.68rem; }
+.clt2-gate-operator i { font-size: 0.76rem; }
+.clt2-gate > small { font-size: 0.52rem; }
+
+.clt2-source-title small,
+.clt2-map-head,
+.clt2-path-count,
+.clt2-target-label span {
+  font-size: 0.54rem;
 }
 
 .clt2-decoder-node .clt2-matrix-glyph {
   margin-top: 0.2rem;
   margin-bottom: 0;
-  transform: scale(0.82);
+  transform: scale(0.74);
   transform-origin: center;
 }
 
 .clt2-decoder-node:hover .clt2-matrix-glyph,
 .clt2-decoder-node:focus-visible .clt2-matrix-glyph {
-  transform: scale(0.86);
+  transform: scale(0.78);
 }
 
 .clt2-inspector code {
-  font-size: 0.72rem;
+  font-size: 0.84rem;
 }
 
 @media (max-width: 1060px) {
