@@ -2155,15 +2155,11 @@ code {
   position: absolute;
   z-index: 0;
   left: 0.8rem;
-  width: calc(72px + 126px + 320px + 1.5rem);
+  width: calc(72px + 126px + 0.75rem);
   height: 88px;
-  border: 0;
+  border: 1px solid rgba(220, 99, 57, 0.62);
   border-radius: 3px;
-  background: linear-gradient(
-    90deg,
-    rgba(255, 248, 239, 0.72) 0 calc(72px + 126px + 0.75rem),
-    transparent calc(72px + 126px + 0.75rem) 100%
-  );
+  background: rgba(255, 248, 239, 0.72);
   content: "";
   pointer-events: none;
   transition: top 160ms ease;
