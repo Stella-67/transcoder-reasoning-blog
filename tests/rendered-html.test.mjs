@@ -25,6 +25,7 @@ test("server-renders the research article and interactive figures", async () => 
   assert.match(html, /Probe graph/);
   assert.match(html, /Loading attribution graph/);
   assert.match(html, /Figure 1/);
+  assert.match(html, /M × d/);
   assert.match(html, /Figure 4/);
   assert.match(html, /Ten ways that “keep going” changes an answer/);
   assert.equal((html.match(/data-trajectory-case=/g) ?? []).length, 10);
@@ -35,9 +36,10 @@ test("server-renders the research article and interactive figures", async () => 
 });
 
 test("keeps every numbered result figure interactive and backed by graph artifacts", async () => {
-  const [graph, results, page, probeData] = await Promise.all([
+  const [graph, results, clt, page, probeData] = await Promise.all([
     readFile(new URL("../app/InteractiveAttributionGraph.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/InteractiveResultFigures.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/InteractiveCltArchitecture.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../public/probe-graphs.json", import.meta.url), "utf8"),
   ]);
@@ -92,6 +94,9 @@ test("keeps every numbered result figure interactive and backed by graph artifac
   assert.match(results, /InteractiveAccuracyFigure/);
   assert.match(results, /aria-live="polite"/);
   assert.match(results, /<select/);
+
+  assert.match(clt, /independent decoder blocks · each M × d/i);
+  assert.match(clt, /½L\(L\+1\) × \(M × d\) decoder blocks/);
 
   assert.match(page, /<InteractiveAttributionGraph \/>/);
   assert.match(page, /<InteractiveActivationFigure \/>/);

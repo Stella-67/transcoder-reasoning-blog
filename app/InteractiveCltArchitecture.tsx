@@ -308,7 +308,7 @@ export default function InteractiveCltArchitecture() {
           <div className="clt2-route-head" aria-hidden="true">
             <span>source layer</span>
             <span>source activations</span>
-            <span>{mode === "latent" ? "featurewise cross-layer coefficients" : "independent cross-layer directions"}</span>
+            <span>{mode === "latent" ? "featurewise cross-layer coefficients" : "independent decoder blocks · each M × d"}</span>
             <span>target-layer reconstruction</span>
           </div>
 
@@ -353,6 +353,7 @@ export default function InteractiveCltArchitecture() {
                         key={`${sourceLayer.key}-${targetLayer.key}`}
                       >
                         <button
+                          className={mode === "direct" ? "clt2-route-decoder-block" : ""}
                           onClick={() => { setSource(sourceLayer.key); setPart("path"); }}
                           onMouseEnter={() => setPart("path")}
                           onFocus={() => setPart("path")}
@@ -361,7 +362,10 @@ export default function InteractiveCltArchitecture() {
                           {mode === "latent" ? (
                             <MathTerm base="γ" sup={`${sourceLayer.symbol}→${targetLayer.symbol}`} sub="a" bold />
                           ) : (
-                            <MathTerm base="w" sup={`${sourceLayer.symbol}→${targetLayer.symbol}`} sub="a" bold />
+                            <>
+                              <MathTerm base="W" sup={`${sourceLayer.symbol}→${targetLayer.symbol}`} bold />
+                              <small>M × d</small>
+                            </>
                           )}
                         </button>
                       </div>
@@ -393,7 +397,7 @@ export default function InteractiveCltArchitecture() {
                         <button className="clt2-decoder-node" {...inspect("decoder")}>
                           <MathTerm base="W" sup="dec" sub={targetLayer.symbol} bold supRoman />
                           <MatrixGlyph direction="decode" />
-                          <small>shared across sources</small>
+                          <small><strong>M × d</strong><span>shared across sources</span></small>
                         </button>
                         <span className="clt2-flow-arrow" aria-hidden="true">→</span>
                       </>
@@ -414,13 +418,13 @@ export default function InteractiveCltArchitecture() {
               <>
                 <span>The factorization</span>
                 <strong><MathTerm base="w" sup="s→ℓ" sub="a" bold /> = <MathTerm base="γ" sup="s→ℓ" sub="a" /> · <MathTerm base="w" sup="dec" sub="ℓ,a" bold supRoman /></strong>
-                <p>source-specific strength × one target-layer direction</p>
+                <p>L × (M × d) base blocks + ½L(L+1) × M scalars</p>
               </>
             ) : (
               <>
                 <span>No factorization</span>
                 <strong><MathTerm base="w" sup="s→ℓ" sub="a" bold /> <small>learned independently</small></strong>
-                <p>a full d-vector for every (s, ℓ, a)</p>
+                <p>½L(L+1) × (M × d) decoder blocks</p>
               </>
             )}
           </div>
