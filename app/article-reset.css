@@ -2075,7 +2075,7 @@ code {
 .clt2-route-head,
 .clt2-route-map {
   display: grid;
-  grid-template-columns: 72px 126px minmax(300px, 1fr) minmax(470px, 1.25fr);
+  grid-template-columns: 72px 126px clamp(280px, 24vw, 380px) minmax(560px, 1fr);
   gap: 1rem;
 }
 
@@ -2358,12 +2358,12 @@ code {
   .clt2-encoding-row { min-width: 920px; }
   .clt2-encoding { overflow-x: auto; }
   .clt2-latent-space { overflow-x: auto; }
-  .clt2-latent-head,
   .clt2-map-head,
-  .clt2-map,
+  .clt2-map { min-width: 940px; }
+  .clt2-latent-head,
   .clt2-route-head,
   .clt2-route-map,
-  .clt2-factorization { min-width: 940px; }
+  .clt2-factorization { min-width: 1100px; }
 }
 
 @media (max-width: 760px) {
