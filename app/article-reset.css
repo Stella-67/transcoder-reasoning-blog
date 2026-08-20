@@ -1138,7 +1138,7 @@ code {
 
 .clt2-source-flow {
   display: grid;
-  grid-template-columns: minmax(70px, 1fr) 13px 58px 13px 68px;
+  grid-template-columns: 112px 13px 62px 13px minmax(78px, 1fr);
   align-items: center;
   gap: 0.25rem;
 }
@@ -1191,8 +1191,9 @@ code {
 }
 
 .clt2-residual {
-  border-color: rgba(79, 131, 200, 0.52);
-  border-radius: 999px;
+  border-color: transparent;
+  border-radius: 0;
+  background: transparent;
   color: #274b76;
 }
 
@@ -1221,19 +1222,28 @@ code {
   align-items: center;
   justify-content: center;
   gap: 0.2rem;
-  margin-top: 0.28rem;
+  width: 100%;
+  min-height: 25px;
+  margin-top: 0.3rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: var(--c2-orange-soft);
+  padding: 0.22rem 0.48rem;
   color: var(--c2-orange);
 }
 
-.clt2-vector-glyph.blue { color: var(--c2-blue); }
+.clt2-vector-glyph.blue {
+  background: var(--c2-blue-soft);
+  color: var(--c2-blue);
+}
 
 .clt2-vector-glyph i {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border: 1px solid currentColor;
   border-radius: 50%;
-  background: currentColor;
-  opacity: 0.22;
+  background: #fff;
+  opacity: 0.88;
 }
 
 .clt2-vector-glyph b {
@@ -1254,14 +1264,16 @@ code {
 
 .clt2-latent-vector {
   display: block;
-  width: 78%;
-  min-height: 45px;
+  width: 58%;
+  min-width: 140px;
+  max-width: 180px;
+  min-height: 48px;
   margin: 0 auto;
-  border-color: rgba(220, 99, 57, 0.56);
-  border-radius: 999px;
-  background: var(--c2-orange-soft);
+  border-color: transparent;
+  border-radius: 0;
+  background: transparent;
   color: #7b3722;
-  padding: 0.38rem 0.6rem;
+  padding: 0.15rem 0.25rem;
   font-size: 0.72rem;
 }
 
@@ -1425,22 +1437,60 @@ code {
 .clt2-mixed-node,
 .clt2-output-node {
   min-width: 0;
-  height: 50px;
-  border-radius: 999px;
-  padding: 0.3rem 0.4rem;
+  height: 54px;
+  border-color: transparent;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.14rem 0.18rem;
   font-size: 0.68rem;
 }
 
 .clt2-mixed-node {
-  border-color: rgba(220, 99, 57, 0.55);
-  background: #fff;
   color: #74341f;
 }
 
 .clt2-output-node {
-  border-color: rgba(79, 131, 200, 0.55);
-  background: var(--c2-blue-soft);
   color: #294e7b;
+}
+
+.clt2-residual > .clt2-math,
+.clt2-latent-vector > .clt2-math,
+.clt2-mixed-node > .clt2-math,
+.clt2-output-node > .clt2-math {
+  display: block;
+  line-height: 1;
+}
+
+.clt2-residual:hover,
+.clt2-residual:focus-visible,
+.clt2-latent-vector:hover,
+.clt2-latent-vector:focus-visible,
+.clt2-mixed-node:hover,
+.clt2-mixed-node:focus-visible,
+.clt2-output-node:hover,
+.clt2-output-node:focus-visible {
+  border-color: transparent;
+  box-shadow: none;
+  outline: none;
+  transform: none;
+}
+
+.clt2-residual:hover .clt2-vector-glyph,
+.clt2-residual:focus-visible .clt2-vector-glyph,
+.clt2-latent-vector:hover .clt2-vector-glyph,
+.clt2-latent-vector:focus-visible .clt2-vector-glyph,
+.clt2-mixed-node:hover .clt2-vector-glyph,
+.clt2-mixed-node:focus-visible .clt2-vector-glyph,
+.clt2-output-node:hover .clt2-vector-glyph,
+.clt2-output-node:focus-visible .clt2-vector-glyph {
+  box-shadow: 0 0 0 2px rgba(220, 99, 57, 0.1), 0 3px 9px rgba(35, 42, 38, 0.07);
+}
+
+.clt2-residual:hover .clt2-vector-glyph.blue,
+.clt2-residual:focus-visible .clt2-vector-glyph.blue,
+.clt2-output-node:hover .clt2-vector-glyph.blue,
+.clt2-output-node:focus-visible .clt2-vector-glyph.blue {
+  box-shadow: 0 0 0 2px rgba(79, 131, 200, 0.1), 0 3px 9px rgba(35, 42, 38, 0.07);
 }
 
 .clt2-decoder-node {
