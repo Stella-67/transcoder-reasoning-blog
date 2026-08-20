@@ -1836,10 +1836,16 @@ code {
 .clt2-residual > .clt2-math,
 .clt2-latent-vector > .clt2-math,
 .clt2-mixed-node > .clt2-math,
-.clt2-decoder-node > .clt2-math,
 .clt2-output-node > .clt2-math,
 .clt2-path-cell > .clt2-math {
   font-size: 0.88rem;
+}
+
+/* Uppercase W reads optically larger than the vector and coefficient labels
+   at the same nominal size. Scale only the matrix symbols to match them. */
+.clt2-encoder > .clt2-math,
+.clt2-decoder-node > .clt2-math {
+  font-size: 0.76rem;
 }
 
 .clt2-target-row {
