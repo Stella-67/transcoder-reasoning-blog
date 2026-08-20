@@ -324,75 +324,98 @@ export default function InteractiveCltArchitecture() {
             <span className="clt2-path-count">6 admissible source → target paths</span>
           </div>
 
-          <div className="clt2-map-head" aria-hidden="true">
-            <span className="target">Target output</span>
-            <span className="activation">source activation</span>
-            {layers.map((layer) => <span className="source" key={layer.key}>source {layer.symbol}</span>)}
-            <span className="result">{mode === "latent" ? "mixed latent" : "sum decoded writes"}</span>
-            {mode === "latent" && <span className="decoder">base decoder</span>}
-            <span className="output">MLP output</span>
+          <div className="clt2-route-head" aria-hidden="true">
+            <span>source activations</span>
+            <span>{mode === "latent" ? "featurewise cross-layer coefficients" : "independent cross-layer directions"}</span>
+            <span>target-layer reconstruction</span>
           </div>
 
-          <div className="clt2-map">
-            {layers.map((targetLayer) => {
-              const targetSelected = targetLayer.key === target;
-              return (
-                <div className={`clt2-target-row ${targetSelected ? "selected" : ""}`} key={targetLayer.key}>
-                  <button
-                    className="clt2-target-label"
-                    onClick={() => { setTarget(targetLayer.key); setPart("sum"); }}
-                    aria-pressed={targetSelected}
-                  >
-                    <span>reconstruct</span>
-                    <strong>{targetLayer.label}</strong>
-                  </button>
+          <div className="clt2-route-map">
+            <div className="clt2-route-sources">
+              {layers.map((sourceLayer) => (
+                <button
+                  className={`clt2-route-source ${sourceLayer.key === source ? "selected" : ""}`}
+                  key={sourceLayer.key}
+                  onClick={() => { setSource(sourceLayer.key); setPart("latent"); }}
+                  aria-pressed={sourceLayer.key === source}
+                >
+                  <span>{sourceLayer.label}</span>
+                  <MathTerm base="z" sub={`${sourceLayer.symbol},t`} bold />
+                  <VectorGlyph />
+                </button>
+              ))}
+            </div>
 
-                  <button className="clt2-source-activation" {...inspect("latent")}>
-                    <MathTerm base="z" sub="s,t" bold />
-                    <VectorGlyph />
-                  </button>
+            <div className="clt2-route-field" aria-label="Admissible source-to-target paths">
+              {layers.flatMap((targetLayer) =>
+                layers
+                  .filter((sourceLayer) => sourceLayer.rank <= targetLayer.rank)
+                  .map((sourceLayer) => {
+                    const routeSelected = sourceLayer.key === source && targetLayer.key === target;
+                    return (
+                      <div
+                        className={`clt2-route-connection from-${sourceLayer.key}-to-${targetLayer.key} ${sourceLayer.key === targetLayer.key ? "horizontal" : "diagonal"} ${routeSelected ? "selected" : ""}`}
+                        key={`${sourceLayer.key}-${targetLayer.key}`}
+                      >
+                        <button
+                          onClick={() => { setSource(sourceLayer.key); setTarget(targetLayer.key); setPart("path"); }}
+                          onMouseEnter={() => setPart("path")}
+                          onFocus={() => setPart("path")}
+                          aria-label={`${mode === "latent" ? "Coefficient" : "Decoder direction"} from ${sourceLayer.label} to ${targetLayer.label}`}
+                        >
+                          {mode === "latent" ? (
+                            <MathTerm base="γ" sup={`${sourceLayer.symbol}→${targetLayer.symbol}`} sub="a" bold />
+                          ) : (
+                            <MathTerm base="w" sup={`${sourceLayer.symbol}→${targetLayer.symbol}`} sub="a" bold />
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })
+              )}
+            </div>
 
-                  {layers.map((sourceLayer) => (
-                    <PathCell
-                      key={sourceLayer.key}
-                      mode={mode}
-                      source={sourceLayer}
-                      target={targetLayer}
-                      valid={sourceLayer.rank <= targetLayer.rank}
-                      sourceSelected={sourceLayer.key === source}
-                      targetSelected={targetSelected}
-                      onSelect={() => { setSource(sourceLayer.key); setTarget(targetLayer.key); setPart("path"); }}
-                      inspect={inspect}
-                    />
-                  ))}
+            <div className="clt2-route-targets">
+              {layers.map((targetLayer) => {
+                const targetSelected = targetLayer.key === target;
+                return (
+                  <div className={`clt2-route-target ${targetSelected ? "selected" : ""}`} key={targetLayer.key}>
+                    <button
+                      className="clt2-route-target-label"
+                      onClick={() => { setTarget(targetLayer.key); setPart("sum"); }}
+                      aria-pressed={targetSelected}
+                    >
+                      <span>target</span>
+                      <strong>{targetLayer.symbol}</strong>
+                    </button>
+                    <span className="clt2-flow-arrow" aria-hidden="true">→</span>
+                    <button className="clt2-sum-node" {...inspect("sum")}>Σ</button>
+                    <span className="clt2-flow-arrow" aria-hidden="true">→</span>
 
-                  <span className="clt2-flow-arrow" aria-hidden="true">→</span>
-                  <button className="clt2-sum-node" {...inspect("sum")}>Σ</button>
-                  <span className="clt2-flow-arrow" aria-hidden="true">→</span>
+                    {mode === "latent" && (
+                      <>
+                        <button className="clt2-mixed-node" {...inspect("mixed")}>
+                          <MathTerm base="z̃" sub={`${targetLayer.symbol},t`} bold />
+                          <VectorGlyph />
+                        </button>
+                        <span className="clt2-flow-arrow" aria-hidden="true">→</span>
+                        <button className="clt2-decoder-node" {...inspect("decoder")}>
+                          <MathTerm base="W" sup="dec" sub={targetLayer.symbol} bold supRoman />
+                          <MatrixGlyph direction="decode" />
+                          <small>shared across sources</small>
+                        </button>
+                        <span className="clt2-flow-arrow" aria-hidden="true">→</span>
+                      </>
+                    )}
 
-                  {mode === "latent" && (
-                    <>
-                      <button className="clt2-mixed-node" {...inspect("mixed")}>
-                        <MathTerm base="z̃" sub={`${targetLayer.symbol},t`} bold />
-                        <VectorGlyph />
-                      </button>
-                      <span className="clt2-flow-arrow" aria-hidden="true">→</span>
-                      <button className="clt2-decoder-node" {...inspect("decoder")}>
-                        <MathTerm base="W" sup="dec" sub={targetLayer.symbol} bold supRoman />
-                        <MatrixGlyph direction="decode" />
-                        <small>shared across sources</small>
-                      </button>
-                      <span className="clt2-flow-arrow" aria-hidden="true">→</span>
-                    </>
-                  )}
-
-                  <button className="clt2-output-node" {...inspect("output")}>
-                    <MathTerm base="m̂" sub={`${targetLayer.symbol},t`} bold />
-                    <VectorGlyph tone="blue" />
-                  </button>
-                </div>
-              );
-            })}
+                    <button className="clt2-output-node" {...inspect("output")}>
+                      <MathTerm base="m̂" sub={`${targetLayer.symbol},t`} bold />
+                      <VectorGlyph tone="blue" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           <div className="clt2-factorization">
