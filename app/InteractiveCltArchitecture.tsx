@@ -94,17 +94,6 @@ function MatrixGlyph({ direction = "encode" }: { direction?: "encode" | "decode"
   );
 }
 
-function SparseGateGlyph() {
-  return (
-    <span className="clt2-gate-glyph" aria-hidden="true">
-      <span className="clt2-threshold-line" />
-      {[34, 66, 43, 86, 54, 74, 29].map((height, index) => (
-        <i key={index} className={index === 1 || index === 3 || index === 5 ? "kept" : ""} style={{ height: `${height}%` }} />
-      ))}
-    </span>
-  );
-}
-
 function SourceCard({
   layer,
   selected,
@@ -134,9 +123,8 @@ function SourceCard({
         </button>
         <span aria-hidden="true">→</span>
         <button className="clt2-node clt2-gate" {...inspect("gate")}>
-          <span className="clt2-gate-label"><strong>JumpReLU</strong><small>threshold</small></span>
-          <SparseGateGlyph />
-          <span className="clt2-topk-label">Top-K · 3 kept</span>
+          <span className="clt2-gate-operator"><strong>JumpReLU</strong><i>+</i><strong>Top-K</strong></span>
+          <small>activation · sparsity</small>
         </button>
       </div>
       <span className="clt2-down-arrow" aria-hidden="true">↓</span>

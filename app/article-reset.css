@@ -1209,15 +1209,14 @@ code {
 }
 
 .clt2-gate {
-  display: grid;
-  grid-template-columns: 1fr 48px;
-  grid-template-rows: 1fr auto;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  column-gap: 0.45rem;
-  height: 62px;
+  justify-content: center;
+  height: 58px;
   border-color: transparent;
   background: transparent;
-  padding: 0.2rem 0.25rem;
+  padding: 0.2rem;
 }
 
 .clt2-encoder:hover,
@@ -1280,65 +1279,32 @@ code {
   transform: scale(1.04);
 }
 
-.clt2-gate-label {
-  display: block;
-  text-align: left;
-}
-
-.clt2-gate-label strong {
-  display: block;
-  font-family: var(--serif);
-  font-size: 0.61rem;
-  font-weight: 600;
-}
-
-.clt2-gate-label small {
-  display: block;
-  margin-top: 0.12rem;
-  color: #777c77;
-  font-size: 0.43rem;
-  font-weight: 400;
-}
-
-.clt2-gate-glyph {
-  position: relative;
+.clt2-gate-operator {
   display: flex;
-  align-items: end;
+  align-items: baseline;
   justify-content: center;
-  gap: 2px;
-  width: 48px;
-  height: 34px;
-  border-bottom: 1px solid #a9ada9;
-  padding: 0 3px;
+  gap: 0.28rem;
+  white-space: nowrap;
 }
 
-.clt2-gate-glyph i {
-  width: 4px;
-  min-height: 4px;
-  border-radius: 2px 2px 0 0;
-  background: #d7d9d6;
+.clt2-gate-operator strong {
+  font-size: 0.56rem;
+  font-weight: 500;
 }
 
-.clt2-gate-glyph i.kept {
-  background: var(--c2-orange);
-}
-
-.clt2-threshold-line {
-  position: absolute;
-  right: 0;
-  bottom: 48%;
-  left: 0;
-  border-top: 1px dashed rgba(220, 99, 57, 0.62);
-}
-
-.clt2-topk-label {
-  grid-column: 1 / -1;
-  margin-top: 0.18rem;
+.clt2-gate-operator i {
   color: var(--c2-orange);
-  font-size: 0.42rem;
-  letter-spacing: 0.035em;
-  text-align: right;
-  text-transform: uppercase;
+  font-family: "STIX Two Math", "Cambria Math", "Times New Roman", serif;
+  font-size: 0.66rem;
+  font-style: normal;
+}
+
+.clt2-gate > small {
+  margin-top: 0.25rem;
+  color: #7a7f7a;
+  font-size: 0.46rem;
+  font-weight: 400;
+  letter-spacing: 0.025em;
 }
 
 .clt2-vector-glyph {
@@ -1760,6 +1726,120 @@ code {
   font-weight: 650;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+/* Type scale and alignment pass */
+.clt2-header h3,
+.clt2-mode button span,
+.clt2-summary p,
+.clt2-summary > div > span,
+.clt2-section-label strong,
+.clt2-latent-head strong,
+.clt2-source-title span,
+.clt2-target-label strong,
+.clt2-factorization p,
+.clt2-inspector strong,
+.clt2-inspector p,
+.clt2-explorer > figcaption {
+  font-family: "Helvetica Neue", Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.clt2-header h3 {
+  font-size: clamp(1.55rem, 2.35vw, 2.05rem);
+  font-weight: 550;
+  letter-spacing: -0.035em;
+}
+
+.clt2-header p,
+.clt2-summary p {
+  font-size: 0.72rem;
+}
+
+.clt2-section-label strong,
+.clt2-latent-head strong,
+.clt2-source-title span,
+.clt2-target-label strong,
+.clt2-inspector strong {
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.clt2-section-label small,
+.clt2-latent-head p,
+.clt2-factorization p,
+.clt2-inspector p,
+.clt2-explorer > figcaption {
+  font-size: 0.6rem;
+  line-height: 1.5;
+}
+
+.clt2-source-flow {
+  align-items: center;
+  min-height: 58px;
+}
+
+.clt2-node,
+.clt2-residual,
+.clt2-encoder,
+.clt2-gate {
+  height: 58px;
+}
+
+.clt2-encoder {
+  font-size: 0.68rem;
+}
+
+.clt2-residual > .clt2-math,
+.clt2-latent-vector > .clt2-math,
+.clt2-mixed-node > .clt2-math,
+.clt2-decoder-node > .clt2-math,
+.clt2-output-node > .clt2-math,
+.clt2-path-cell > .clt2-math {
+  font-size: 0.72rem;
+}
+
+.clt2-target-row {
+  min-height: 72px;
+}
+
+.clt2-path-cell,
+.clt2-mixed-node,
+.clt2-decoder-node,
+.clt2-output-node {
+  height: 58px;
+}
+
+.clt2-path-cell.valid,
+.clt2-mixed-node,
+.clt2-decoder-node,
+.clt2-output-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.clt2-path-cell.valid small,
+.clt2-decoder-node small {
+  margin-top: 0.22rem;
+  font-size: 0.44rem;
+  line-height: 1;
+}
+
+.clt2-decoder-node .clt2-matrix-glyph {
+  margin-top: 0.2rem;
+  margin-bottom: 0;
+  transform: scale(0.82);
+  transform-origin: center;
+}
+
+.clt2-decoder-node:hover .clt2-matrix-glyph,
+.clt2-decoder-node:focus-visible .clt2-matrix-glyph {
+  transform: scale(0.86);
+}
+
+.clt2-inspector code {
+  font-size: 0.72rem;
 }
 
 @media (max-width: 1060px) {
