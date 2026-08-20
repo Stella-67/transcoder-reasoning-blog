@@ -2151,7 +2151,7 @@ code {
 
 .clt2-route-map {
   position: relative;
-  padding: 0 0.8rem 0.8rem;
+  padding: 0 0.8rem 0.35rem;
 }
 
 .clt2-route-map::before {
