@@ -4,92 +4,173 @@ import { useState } from "react";
 
 type Mode = "direct" | "latent";
 type LayerKey = "L" | "ell" | "s";
-type PartKey =
-  | "residual"
-  | "encoder"
-  | "gate"
-  | "feature"
-  | "crossLayer"
-  | "sum"
-  | "mixed"
-  | "decoder"
-  | "output";
+type PartKey = "input" | "encoder" | "gate" | "latent" | "path" | "sum" | "mixed" | "decoder" | "output";
 
-const layers: Array<{ key: LayerKey; label: string; math: string; rank: number }> = [
-  { key: "L", label: "Layer L", math: "L", rank: 2 },
-  { key: "ell", label: "Layer ℓ", math: "ℓ", rank: 1 },
-  { key: "s", label: "Layer s", math: "s", rank: 0 },
+type Layer = {
+  key: LayerKey;
+  label: string;
+  symbol: string;
+  rank: number;
+};
+
+const layers: Layer[] = [
+  { key: "L", label: "Layer L", symbol: "L", rank: 2 },
+  { key: "ell", label: "Layer ℓ", symbol: "ℓ", rank: 1 },
+  { key: "s", label: "Layer s", symbol: "s", rank: 0 },
 ];
 
-const partCopy: Record<PartKey, { title: string; body: string; formula: string }> = {
-  residual: {
+const partCopy: Record<PartKey, { title: string; body: string; formula: React.ReactNode }> = {
+  input: {
     title: "Residual-stream input",
-    body: "The frozen transformer state read at one token and one source layer.",
-    formula: "xₛ,ₜ ∈ ℝᵈ",
+    body: "The frozen transformer state at token t, read independently at each source layer.",
+    formula: <MathTerm base="x" sub="s,t" />,
   },
   encoder: {
     title: "Layer-specific encoder",
-    body: "Each source layer has its own encoder that projects the residual state into the shared feature coordinates.",
-    formula: "Wˢᵉⁿᶜ xₛ,ₜ + bˢᵉⁿᶜ",
+    body: "Each layer has its own encoder. It maps the residual stream into the same M feature coordinates.",
+    formula: <MathTerm base="W" sup="enc" sub="s" />,
   },
   gate: {
-    title: "Sparse activation rule",
-    body: "JumpReLU thresholds the coordinates, then Top-K keeps only the strongest active features for this token and layer.",
-    formula: "zₛ,ₜ = Top-K(JumpReLU(·))",
+    title: "Sparse activation",
+    body: "JumpReLU thresholds the coordinates; Top-K keeps only the strongest active features for this token and layer.",
+    formula: <span>Top-K(JumpReLU(·))</span>,
   },
-  feature: {
-    title: "Sparse feature activations",
-    body: "All source layers use the same M latent coordinates, so coordinate a can be compared and mixed across depth.",
-    formula: "zₛ,ₜ ∈ ℝᴹ",
+  latent: {
+    title: "Shared latent coordinate system",
+    body: "Every layer writes into the same M-dimensional coordinate system. Coordinate a denotes the same learned feature across depth.",
+    formula: <MathTerm base="z" sub="s,t" tail=" ∈ ℝᴹ" />,
   },
-  crossLayer: {
-    title: "Cross-layer contribution",
-    body: "Direct CLT learns a full direction for every source–target pair. Latent mixing keeps one target-layer direction and lets γ control source-specific strength.",
-    formula: "wₐˢ→ℓ = γₐˢ→ℓ · wₗ,ₐᵈᵉᶜ",
+  path: {
+    title: "Cross-layer path",
+    body: "A source feature may contribute to its own layer and every later output layer. The triangular map makes all admissible s → ℓ paths explicit.",
+    formula: <MathTerm base="γ" sup="s→ℓ" sub="a" />,
   },
   sum: {
-    title: "Aggregate all eligible sources",
-    body: "Only source layers at or before the selected output layer contribute to that reconstruction.",
-    formula: "Σₛ≤ℓ",
+    title: "Gather upstream source layers",
+    body: "Each target layer aggregates contributions from every source layer at or before it.",
+    formula: <span>Σ<sub>s≤ℓ</sub></span>,
   },
   mixed: {
-    title: "Output-specific mixed latent",
-    body: "In the factorized model, source activations are mixed feature by feature before a single output-layer decoder is applied.",
-    formula: "z̃ₗ,ₜ = Σₛ≤ℓ γˢ→ℓ ⊙ zₛ,ₜ",
+    title: "Output-specific latent state",
+    body: "Latent mixing first combines source activations feature by feature, while staying inside the shared M-dimensional space.",
+    formula: <MathTerm base="z̃" sub="ℓ,t" tail=" ∈ ℝᴹ" />,
   },
   decoder: {
-    title: "Output-layer base decoder",
-    body: "Latent mixing needs one M × d decoder per output layer, shared by every source feeding that layer.",
-    formula: "Wₗᵈᵉᶜ ∈ ℝᴹˣᵈ",
+    title: "One base decoder per output layer",
+    body: "After latent mixing, all source layers share the same target-layer decoder direction for feature a.",
+    formula: <MathTerm base="W" sup="dec" sub="ℓ" />,
   },
   output: {
     title: "Reconstructed MLP output",
-    body: "The CLT is trained to reproduce the frozen transformer’s MLP output at the selected target layer.",
-    formula: "m̂ₗ,ₜ ∈ ℝᵈ",
+    body: "The final d-dimensional vector approximates the frozen transformer’s MLP output at the target layer.",
+    formula: <MathTerm base="m̂" sub="ℓ,t" tail=" ∈ ℝᵈ" />,
   },
 };
 
-function VectorDots({ tone }: { tone: "blue" | "orange" }) {
+function MathTerm({ base, sub, sup, tail }: { base: string; sub?: string; sup?: string; tail?: string }) {
   return (
-    <span className={`clt-vector-dots ${tone}`} aria-hidden="true">
+    <span className="clt2-math">
+      <i>{base}</i>
+      {sup && <sup>{sup}</sup>}
+      {sub && <sub>{sub}</sub>}
+      {tail}
+    </span>
+  );
+}
+
+function VectorGlyph({ tone = "orange" }: { tone?: "orange" | "blue" }) {
+  return (
+    <span className={`clt2-vector-glyph ${tone}`} aria-hidden="true">
       <i /><i /><i /><b>···</b><i />
     </span>
   );
 }
 
+function SourceCard({
+  layer,
+  selected,
+  onSelect,
+  inspect,
+}: {
+  layer: Layer;
+  selected: boolean;
+  onSelect: () => void;
+  inspect: (part: PartKey) => Record<string, () => void>;
+}) {
+  return (
+    <div className={`clt2-source-card ${selected ? "selected" : ""}`}>
+      <button className="clt2-source-title" onClick={onSelect} aria-pressed={selected}>
+        <span>{layer.label}</span>
+        <small>{selected ? "tracing downstream" : "trace this source"}</small>
+      </button>
+      <div className="clt2-source-flow">
+        <button className="clt2-node clt2-residual" {...inspect("input")}>
+          <MathTerm base="x" sub={`${layer.symbol},t`} />
+          <VectorGlyph tone="blue" />
+        </button>
+        <span aria-hidden="true">→</span>
+        <button className="clt2-node clt2-encoder" {...inspect("encoder")}>
+          <MathTerm base="W" sup="enc" sub={layer.symbol} />
+        </button>
+        <span aria-hidden="true">→</span>
+        <button className="clt2-node clt2-gate" {...inspect("gate")}>
+          <span>JumpReLU</span><small>Top-K</small>
+        </button>
+      </div>
+      <span className="clt2-down-arrow" aria-hidden="true">↓</span>
+      <button className="clt2-latent-vector" {...inspect("latent")} onClick={onSelect}>
+        <MathTerm base="z" sub={`${layer.symbol},t`} />
+        <VectorGlyph />
+      </button>
+    </div>
+  );
+}
+
+function PathCell({
+  mode,
+  source,
+  target,
+  valid,
+  sourceSelected,
+  targetSelected,
+  onSelect,
+  inspect,
+}: {
+  mode: Mode;
+  source: Layer;
+  target: Layer;
+  valid: boolean;
+  sourceSelected: boolean;
+  targetSelected: boolean;
+  onSelect: () => void;
+  inspect: (part: PartKey) => Record<string, () => void>;
+}) {
+  if (!valid) {
+    return <div className="clt2-path-cell invalid" aria-label={`No path from ${source.label} to ${target.label}`}>—</div>;
+  }
+
+  const intersection = sourceSelected && targetSelected;
+  return (
+    <button
+      className={`clt2-path-cell valid ${sourceSelected ? "source-selected" : ""} ${targetSelected ? "target-selected" : ""} ${intersection ? "intersection" : ""}`}
+      {...inspect("path")}
+      onClick={onSelect}
+    >
+      {mode === "latent" ? (
+        <MathTerm base="γ" sup={`${source.symbol}→${target.symbol}`} sub="a" />
+      ) : (
+        <MathTerm base="w" sup={`${source.symbol}→${target.symbol}`} sub="a" />
+      )}
+      <small>{mode === "latent" ? "scalar strength" : "independent d-vector"}</small>
+    </button>
+  );
+}
+
 export default function InteractiveCltArchitecture() {
   const [mode, setMode] = useState<Mode>("latent");
-  const [target, setTarget] = useState<LayerKey>("L");
   const [source, setSource] = useState<LayerKey>("s");
-  const [part, setPart] = useState<PartKey>("crossLayer");
-
-  const targetLayer = layers.find((layer) => layer.key === target) ?? layers[0];
-  const selectedSource = layers.find((layer) => layer.key === source) ?? layers[2];
-  const eligibleLayers = layers.filter((layer) => layer.rank <= targetLayer.rank);
-  const activeSource = eligibleLayers.some((layer) => layer.key === selectedSource.key)
-    ? selectedSource.key
-    : eligibleLayers[eligibleLayers.length - 1].key;
-  const detail = partCopy[part];
+  const [target, setTarget] = useState<LayerKey>("L");
+  const [part, setPart] = useState<PartKey>("latent");
 
   const inspect = (next: PartKey) => ({
     onMouseEnter: () => setPart(next),
@@ -97,185 +178,174 @@ export default function InteractiveCltArchitecture() {
     onClick: () => setPart(next),
   });
 
+  const selectedSource = layers.find((layer) => layer.key === source) ?? layers[2];
+  const selectedTarget = layers.find((layer) => layer.key === target) ?? layers[0];
+  const baseDetail = partCopy[part];
+  const detail = part === "path"
+    ? mode === "latent"
+      ? {
+          title: "Cross-layer scalar in latent space",
+          body: "For every active feature coordinate a, γ changes the strength of a source layer’s contribution without changing its target-layer decoder direction.",
+          formula: <span><MathTerm base="w" sup="s→ℓ" sub="a" /> = <MathTerm base="γ" sup="s→ℓ" sub="a" /> · <MathTerm base="w" sup="dec" sub="ℓ,a" /></span>,
+        }
+      : {
+          title: "Independent cross-layer decoder",
+          body: "The direct CLT learns a separate d-dimensional direction for every source layer, target layer, and feature coordinate.",
+          formula: <MathTerm base="w" sup="s→ℓ" sub="a" tail=" ∈ ℝᵈ" />,
+        }
+    : baseDetail;
+
   return (
-    <figure className="clt-explorer full-bleed" aria-labelledby="clt-explorer-title">
-      <div className="clt-explorer-head">
+    <figure className="clt2-explorer full-bleed" aria-labelledby="clt2-title">
+      <header className="clt2-header">
         <div>
-          <span className="clt-figure-number">Figure 1 · interactive</span>
-          <h3 id="clt-explorer-title">From direct CLT to latent mixing</h3>
-          <p>Choose a target layer, trace one source, then switch the decoder parameterization.</p>
+          <span className="clt2-kicker">Figure 1 · interactive architecture</span>
+          <h3 id="clt2-title">One feature space, many layers</h3>
+          <p>Trace a source column and a target row to see how cross-layer decoding is factorized.</p>
         </div>
-        <div className="clt-mode-switch" role="group" aria-label="CLT parameterization">
-          <button className={mode === "direct" ? "active" : ""} onClick={() => setMode("direct")}>
-            Direct CLT
+        <div className="clt2-mode" role="group" aria-label="Compare CLT parameterizations">
+          <button className={mode === "direct" ? "active" : ""} onClick={() => { setMode("direct"); setPart("path"); }}>
+            <span>Direct CLT</span><small>independent directions</small>
           </button>
-          <button className={mode === "latent" ? "active" : ""} onClick={() => setMode("latent")}>
-            Latent mixing
+          <button className={mode === "latent" ? "active" : ""} onClick={() => { setMode("latent"); setPart("path"); }}>
+            <span>Latent mixing</span><small>shared direction + γ</small>
           </button>
         </div>
-      </div>
+      </header>
 
-      <div className="clt-comparison-strip" aria-live="polite">
+      <div className="clt2-summary" aria-live="polite">
+        <p>
+          {mode === "latent"
+            ? <>Mix source activations <em>inside ℝᴹ</em>, then decode once per output layer.</>
+            : <>Decode every source–target pair with an <em>independent ℝᵈ direction</em>.</>}
+        </p>
         <div>
-          <span>Decoder form</span>
-          <strong>{mode === "direct" ? "wₐˢ→ℓ" : "γₐˢ→ℓ · wₗ,ₐᵈᵉᶜ"}</strong>
-        </div>
-        <div>
-          <span>Direction sharing</span>
-          <strong>{mode === "direct" ? "Independent for every (s, ℓ, a)" : "Shared within output layer ℓ"}</strong>
-        </div>
-        <div>
-          <span>Decoder parameters</span>
-          <strong>{mode === "direct" ? "152.32B" : "≈ 8.764B"}</strong>
-          {mode === "latent" && <em>17.4× smaller</em>}
+          <span>{mode === "latent" ? "8.764B" : "152.32B"}<small>decoder parameters</small></span>
+          <span>{mode === "latent" ? "17.4× smaller" : "reference"}<small>Gemma, L = 34</small></span>
         </div>
       </div>
 
-      <div className="clt-controls">
-        <span>Reconstruct output at</span>
-        <div role="group" aria-label="Select output layer">
-          {layers.map((layer) => (
-            <button
-              key={layer.key}
-              className={target === layer.key ? "active" : ""}
-              onClick={() => {
-                setTarget(layer.key);
-                if (selectedSource.rank > layer.rank) setSource(layer.key);
-              }}
-            >
-              {layer.label}
-            </button>
-          ))}
-        </div>
-        <span className="clt-control-note">Click a source row to trace its contribution.</span>
-      </div>
-
-      <div className="clt-diagram" data-mode={mode}>
-        <div className="clt-stage-headings" aria-hidden="true">
-          <span>Input residual stream</span>
-          <span>Layer encoder</span>
-          <span>Sparsity</span>
-          <span>Shared coordinates</span>
-        </div>
-
-        <div className="clt-source-stack">
-          {layers.map((layer) => {
-            const eligible = layer.rank <= targetLayer.rank;
-            const selected = layer.key === activeSource;
-            return (
-              <div
+      <div className="clt2-canvas" data-mode={mode}>
+        <section className="clt2-encoding" aria-label="Layer-specific encoders">
+          <div className="clt2-section-label">
+            <span>01</span>
+            <strong>Layer-specific encoding</strong>
+            <small>residual stream → sparse features</small>
+          </div>
+          <div className="clt2-source-grid">
+            {layers.map((layer) => (
+              <SourceCard
                 key={layer.key}
-                className={`clt-source-row ${eligible ? "eligible" : "ineligible"} ${selected ? "selected" : ""}`}
-              >
-                <button
-                  className="clt-layer-label"
-                  disabled={!eligible}
-                  onClick={() => {
-                    setSource(layer.key);
-                    setPart("crossLayer");
-                  }}
-                  aria-pressed={selected}
-                >
-                  {layer.label}
-                </button>
-                <button className="clt-part vector-part" {...inspect("residual")}>
-                  <span className="math-label">x<sub>{layer.math},t</sub></span>
-                  <VectorDots tone="blue" />
-                </button>
-                <span className="clt-arrow" aria-hidden="true">→</span>
-                <button className="clt-part clt-matrix" {...inspect("encoder")}>
-                  W<sup>enc</sup><sub>{layer.math}</sub>
-                </button>
-                <span className="clt-arrow" aria-hidden="true">→</span>
-                <button className="clt-part clt-gate" {...inspect("gate")}>
-                  JumpReLU<br />+ Top-K
-                </button>
-                <span className="clt-arrow" aria-hidden="true">→</span>
-                <button className="clt-part vector-part feature-vector" {...inspect("feature")}>
-                  <span className="math-label">z<sub>{layer.math},t</sub></span>
-                  <VectorDots tone="orange" />
-                </button>
-                <span className="clt-source-status">
-                  {eligible ? (selected ? "tracing" : "contributes") : "after target"}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+                layer={layer}
+                selected={layer.key === source}
+                onSelect={() => { setSource(layer.key); setPart("latent"); }}
+                inspect={inspect}
+              />
+            ))}
+          </div>
+        </section>
 
-        <div className="clt-decode-zone">
-          <div className="clt-decode-label">
-            <span>{mode === "direct" ? "Independent cross-layer decoders" : "Featurewise cross-layer mixing"}</span>
-            <small>Sources s ≤ {targetLayer.math}</small>
+        <section className="clt2-latent-space" aria-label="Shared M-dimensional latent space and cross-layer mixing">
+          <div className="clt2-latent-head">
+            <div>
+              <span>02</span>
+              <strong>Shared latent space <MathTerm base="ℝ" sup="M" /></strong>
+            </div>
+            <p>Coordinate <MathTerm base="a" /> names the same learned feature at every source layer.</p>
+            <span className="clt2-path-count">6 admissible source → target paths</span>
           </div>
 
-          <div className="clt-decode-flow">
-            <div className="clt-contribution-stack">
-              {eligibleLayers.map((layer) => {
-                const selected = layer.key === activeSource;
-                return (
+          <div className="clt2-map-head" aria-hidden="true">
+            <span>Target output</span>
+            {layers.map((layer) => <span key={layer.key}>source {layer.symbol}</span>)}
+            <span>{mode === "latent" ? "mixed latent" : "sum decoded writes"}</span>
+            {mode === "latent" && <span>base decoder</span>}
+            <span>MLP output</span>
+          </div>
+
+          <div className="clt2-map">
+            {layers.map((targetLayer) => {
+              const targetSelected = targetLayer.key === target;
+              return (
+                <div className={`clt2-target-row ${targetSelected ? "selected" : ""}`} key={targetLayer.key}>
                   <button
-                    key={layer.key}
-                    className={`clt-contribution ${selected ? "selected" : ""}`}
-                    {...inspect("crossLayer")}
-                    onClick={() => {
-                      setSource(layer.key);
-                      setPart("crossLayer");
-                    }}
+                    className="clt2-target-label"
+                    onClick={() => { setTarget(targetLayer.key); setPart("sum"); }}
+                    aria-pressed={targetSelected}
                   >
-                    <span>{layer.label}</span>
-                    <strong>
-                      {mode === "direct"
-                        ? `wₐ${layer.math}→${targetLayer.math}`
-                        : `γₐ${layer.math}→${targetLayer.math} ⊙ z${layer.math},t`}
-                    </strong>
+                    <span>reconstruct</span>
+                    <strong>{targetLayer.label}</strong>
                   </button>
-                );
-              })}
-            </div>
 
-            <span className="clt-arrow merge-arrow" aria-hidden="true">→</span>
-            <button className="clt-part clt-sum" {...inspect("sum")}>Σ</button>
-            <span className="clt-arrow" aria-hidden="true">→</span>
+                  {layers.map((sourceLayer) => (
+                    <PathCell
+                      key={sourceLayer.key}
+                      mode={mode}
+                      source={sourceLayer}
+                      target={targetLayer}
+                      valid={sourceLayer.rank <= targetLayer.rank}
+                      sourceSelected={sourceLayer.key === source}
+                      targetSelected={targetSelected}
+                      onSelect={() => { setSource(sourceLayer.key); setTarget(targetLayer.key); setPart("path"); }}
+                      inspect={inspect}
+                    />
+                  ))}
 
-            {mode === "latent" && (
+                  <span className="clt2-flow-arrow" aria-hidden="true">→</span>
+                  <button className="clt2-sum-node" {...inspect("sum")}>Σ</button>
+                  <span className="clt2-flow-arrow" aria-hidden="true">→</span>
+
+                  {mode === "latent" && (
+                    <>
+                      <button className="clt2-mixed-node" {...inspect("mixed")}>
+                        <MathTerm base="z̃" sub={`${targetLayer.symbol},t`} />
+                        <VectorGlyph />
+                      </button>
+                      <span className="clt2-flow-arrow" aria-hidden="true">→</span>
+                      <button className="clt2-decoder-node" {...inspect("decoder")}>
+                        <MathTerm base="W" sup="dec" sub={targetLayer.symbol} />
+                        <small>shared across sources</small>
+                      </button>
+                      <span className="clt2-flow-arrow" aria-hidden="true">→</span>
+                    </>
+                  )}
+
+                  <button className="clt2-output-node" {...inspect("output")}>
+                    <MathTerm base="m̂" sub={`${targetLayer.symbol},t`} />
+                    <VectorGlyph tone="blue" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="clt2-factorization">
+            {mode === "latent" ? (
               <>
-                <button className="clt-part vector-part mixed-vector" {...inspect("mixed")}>
-                  <span className="math-label">z̃<sub>{targetLayer.math},t</sub></span>
-                  <VectorDots tone="orange" />
-                </button>
-                <span className="clt-arrow" aria-hidden="true">→</span>
-                <button className="clt-part clt-matrix decoder-matrix" {...inspect("decoder")}>
-                  W<sup>dec</sup><sub>{targetLayer.math}</sub>
-                  <small>one shared direction</small>
-                </button>
-                <span className="clt-arrow" aria-hidden="true">→</span>
+                <span>The factorization</span>
+                <strong><MathTerm base="w" sup="s→ℓ" sub="a" /> = <MathTerm base="γ" sup="s→ℓ" sub="a" /> · <MathTerm base="w" sup="dec" sub="ℓ,a" /></strong>
+                <p>source-specific strength × one target-layer direction</p>
+              </>
+            ) : (
+              <>
+                <span>No factorization</span>
+                <strong><MathTerm base="w" sup="s→ℓ" sub="a" /> <small>learned independently</small></strong>
+                <p>a full d-vector for every (s, ℓ, a)</p>
               </>
             )}
-
-            <button className="clt-part vector-part output-vector" {...inspect("output")}>
-              <span className="math-label">m̂<sub>{targetLayer.math},t</sub></span>
-              <VectorDots tone="blue" />
-            </button>
           </div>
-        </div>
+        </section>
       </div>
 
-      <div className="clt-inspector" aria-live="polite">
+      <aside className="clt2-inspector" aria-live="polite">
         <span>Inspecting</span>
-        <div>
-          <strong>{detail.title}</strong>
-          <p>{detail.body}</p>
-        </div>
+        <div><strong>{detail.title}</strong><p>{detail.body}</p></div>
         <code>{detail.formula}</code>
-      </div>
+      </aside>
 
       <figcaption>
-        <strong>Figure 1.</strong> Interactive comparison of the direct and latent-mixing CLT
-        parameterizations. Both encode layer-specific residual states into sparse shared feature
-        coordinates. The direct CLT assigns every source–output pair an independent decoder
-        direction; latent mixing replaces that direction with a source-specific scalar and one
-        output-layer base direction.
+        <strong>Figure 1.</strong>
+        <span>Layer-specific encoders place sparse activations in one shared M-dimensional latent coordinate system. The triangular map shows that a source at layer s may write to every output layer ℓ ≥ s. Latent mixing replaces each independent cross-layer decoder direction with a scalar γ and one output-layer base direction.</span>
       </figcaption>
     </figure>
   );
