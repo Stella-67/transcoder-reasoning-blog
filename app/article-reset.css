@@ -2409,6 +2409,13 @@ code {
   position: relative;
 }
 
+.clt2-route-target .clt2-output-node {
+  width: 108px;
+  justify-self: end;
+  padding-right: 0;
+  padding-left: 0;
+}
+
 .clt2-route-target .clt2-mixed-node > .clt2-math,
 .clt2-route-target .clt2-output-node > .clt2-math {
   position: absolute;
@@ -2421,6 +2428,11 @@ code {
 .clt2-route-target .clt2-mixed-node .clt2-vector-glyph,
 .clt2-route-target .clt2-output-node .clt2-vector-glyph {
   margin-top: 0;
+}
+
+.clt2-route-target .clt2-output-node .clt2-vector-glyph {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .clt2-route-target.selected {
