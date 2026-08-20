@@ -2524,6 +2524,11 @@ code {
   padding: 0.2rem;
 }
 
+.clt2-encoding-row .clt2-encoder > .clt2-math,
+.clt2-route-target .clt2-decoder-node > .clt2-math {
+  font-size: 0.84rem;
+}
+
 .clt2-decoder-stack {
   position: relative;
   display: flex;
