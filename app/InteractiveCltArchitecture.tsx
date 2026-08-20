@@ -191,13 +191,19 @@ function PathCell({
       className={`clt2-path-cell valid ${sourceSelected ? "source-selected" : ""} ${targetSelected ? "target-selected" : ""} ${intersection ? "intersection" : ""}`}
       {...inspect("path")}
       onClick={onSelect}
+      aria-label={`${mode === "latent" ? "Latent mixing coefficient" : "Direct decoder direction"} from ${source.label} to ${target.label}`}
     >
-      {mode === "latent" ? (
-        <MathTerm base="γ" sup={`${source.symbol}→${target.symbol}`} bold />
-      ) : (
-        <MathTerm base="w" sup={`${source.symbol}→${target.symbol}`} sub="a" bold />
-      )}
-      <small>{mode === "latent" ? "featurewise coefficients" : "independent d-vector"}</small>
+      <span className="clt2-route-end source" aria-hidden="true">{source.symbol}</span>
+      <span className="clt2-route-track" aria-hidden="true">
+        <span className="clt2-route-label">
+          {mode === "latent" ? (
+            <MathTerm base="γ" sup={`${source.symbol}→${target.symbol}`} sub="a" bold />
+          ) : (
+            <MathTerm base="w" sup={`${source.symbol}→${target.symbol}`} sub="a" bold />
+          )}
+        </span>
+      </span>
+      <span className="clt2-route-end target" aria-hidden="true">{target.symbol}</span>
     </button>
   );
 }

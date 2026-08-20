@@ -1924,6 +1924,117 @@ code {
 
 .clt2-path-cell.valid small { font-size: 0.5rem; }
 
+/* Cross-layer routes are drawn as explicit source-to-target connections. */
+.clt2-path-cell.valid,
+.clt2-canvas[data-mode="direct"] .clt2-path-cell.valid,
+.clt2-path-cell.source-selected,
+.clt2-path-cell.target-selected,
+.clt2-path-cell.intersection {
+  display: grid;
+  grid-template-columns: 24px minmax(34px, 1fr) 24px;
+  align-items: center;
+  gap: 0.22rem;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  padding: 0.2rem;
+}
+
+.clt2-path-cell.valid:hover,
+.clt2-path-cell.valid:focus-visible {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  outline: none;
+  transform: none;
+}
+
+.clt2-path-cell.invalid {
+  border-color: transparent;
+  background: transparent;
+}
+
+.clt2-route-end {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  background: #fff;
+  font-family: "STIX Two Math", "Cambria Math", "Times New Roman", serif;
+  font-size: 0.72rem;
+  font-style: italic;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.clt2-route-end.source {
+  color: var(--c2-orange);
+}
+
+.clt2-route-end.target {
+  color: var(--c2-green);
+}
+
+.clt2-route-track {
+  position: relative;
+  display: block;
+  height: 40px;
+  color: #9ca19c;
+}
+
+.clt2-route-track::before {
+  position: absolute;
+  top: 25px;
+  right: 1px;
+  left: 0;
+  height: 1.5px;
+  background: currentColor;
+  content: "";
+}
+
+.clt2-route-track::after {
+  position: absolute;
+  top: 21px;
+  right: 0;
+  width: 7px;
+  height: 7px;
+  border-top: 1.5px solid currentColor;
+  border-right: 1.5px solid currentColor;
+  content: "";
+  transform: rotate(45deg);
+}
+
+.clt2-route-label {
+  position: absolute;
+  top: 1px;
+  left: 50%;
+  color: #5d625d;
+  font-size: 0.66rem;
+  line-height: 1;
+  transform: translateX(-50%);
+}
+
+.clt2-path-cell.source-selected .clt2-route-track,
+.clt2-path-cell.valid:hover .clt2-route-track,
+.clt2-path-cell.valid:focus-visible .clt2-route-track {
+  color: var(--c2-orange);
+}
+
+.clt2-path-cell.target-selected .clt2-route-end.target {
+  background: var(--c2-green-soft);
+}
+
+.clt2-path-cell.intersection .clt2-route-track {
+  color: var(--c2-orange);
+}
+
+.clt2-path-cell.intersection .clt2-route-label {
+  color: #7a351f;
+  font-weight: 600;
+}
+
 .clt2-gate-operator strong { font-size: 0.68rem; }
 .clt2-gate-operator i { font-size: 0.76rem; }
 .clt2-gate > small { font-size: 0.52rem; }
