@@ -1173,7 +1173,9 @@ code {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 140px;
+  width: 108px;
+  padding-right: 0;
+  padding-left: 0;
 }
 
 .clt2-encoding-row .clt2-residual > .clt2-math,
