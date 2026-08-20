@@ -309,7 +309,10 @@ export default function InteractiveCltArchitecture() {
             <span>source layer</span>
             <span>source activations</span>
             <span>{mode === "latent" ? "featurewise cross-layer coefficients" : "independent decoder blocks · each M × d"}</span>
-            <span>target-layer reconstruction</span>
+            <div className={`clt2-route-target-head ${mode}`}>
+              <span>target-layer reconstruction</span>
+              {mode === "latent" && <strong>output-specific latent state · ℝᴹ</strong>}
+            </div>
           </div>
 
           <div className="clt2-route-map" data-source={source}>

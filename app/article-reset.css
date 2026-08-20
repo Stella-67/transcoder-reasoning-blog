@@ -2102,6 +2102,33 @@ code {
   text-transform: uppercase;
 }
 
+.clt2-route-target-head {
+  display: grid;
+  grid-template-columns: 44px 12px minmax(76px, 1fr) 12px 82px 12px minmax(86px, 1fr);
+  align-items: end;
+  gap: 0.18rem 0.3rem;
+  min-width: 0;
+}
+
+.clt2-route-target-head > span {
+  grid-column: 1 / -1;
+  text-align: center;
+}
+
+.clt2-route-target-head > strong {
+  grid-column: 3;
+  color: #7a351f;
+  font-size: 0.48rem;
+  font-weight: 650;
+  letter-spacing: 0.035em;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.clt2-route-target-head.direct {
+  grid-template-columns: 44px 12px minmax(100px, 1fr);
+}
+
 .clt2-route-map {
   position: relative;
   padding: 0 0.8rem 0.8rem;
