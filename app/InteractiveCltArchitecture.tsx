@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Math from "./Math";
 
 type Mode = "direct" | "latent";
 type LayerKey = "L" | "ell" | "s";
@@ -33,7 +34,7 @@ const partCopy: Record<PartKey, { title: string; body: string; formula: React.Re
   gate: {
     title: "Sparse activation",
     body: "JumpReLU thresholds the coordinates; Top-K keeps only the strongest active features for this token and layer.",
-    formula: <span>Top-K(JumpReLU(·))</span>,
+    formula: <Math tex={String.raw`\operatorname{TopK}(\operatorname{JumpReLU}(\cdot))`} />,
   },
   latent: {
     title: "Shared latent coordinate system",
@@ -48,7 +49,7 @@ const partCopy: Record<PartKey, { title: string; body: string; formula: React.Re
   sum: {
     title: "Gather upstream source layers",
     body: "Each target layer aggregates contributions from every source layer at or before it.",
-    formula: <span>Σ<sub>s≤ℓ</sub></span>,
+    formula: <Math tex={String.raw`\sum_{s\leq\ell}`} />,
   },
   mixed: {
     title: "Output-specific latent state",
@@ -84,118 +85,41 @@ function MathTerm({
   supRoman?: boolean;
   romanBase?: boolean;
 }) {
-  const scripts = sup && sub ? (
-    <span className="clt2-script-stack">
-      <sup className={supRoman ? "roman" : ""}>{sup}</sup>
-      <sub>{sub}</sub>
-    </span>
-  ) : sup ? (
-    <sup className={supRoman ? "roman" : ""}>{sup}</sup>
-  ) : sub ? (
-    <sub>{sub}</sub>
-  ) : null;
+  const normalize = (value: string) => value
+    .replace(/ℓ/g, String.raw`\ell`)
+    .replace(/ℝ/g, String.raw`\mathbb{R}`)
+    .replace(/ᴹ/g, "M")
+    .replace(/ᵈ/g, "d")
+    .replace(/→/g, String.raw`\to`)
+    .replace(/≤/g, String.raw`\leq`)
+    .replace(/∈/g, String.raw`\in`)
+    .replace(/γ/g, String.raw`\gamma`);
+  const normalizedBase = normalize(base);
+  const styledBase = base === "z̃"
+    ? String.raw`\widetilde{\mathbf{z}}`
+    : base === "m̂"
+      ? String.raw`\widehat{\mathbf{m}}`
+      : base === "ℝ"
+        ? String.raw`\mathbb{R}`
+        : base === "γ" && bold
+          ? String.raw`\boldsymbol{\gamma}`
+          : bold
+            ? String.raw`\mathbf{${normalizedBase}}`
+            : romanBase
+              ? String.raw`\mathrm{${normalizedBase}}`
+              : normalizedBase;
+  const superscript = sup ? `^{${supRoman ? String.raw`\mathrm{${normalize(sup)}}` : normalize(sup)}}` : "";
+  const subscript = sub ? `_{${normalize(sub)}}` : "";
+  const suffix = tail ? normalize(tail) : "";
 
-  return (
-    <span className="clt2-math">
-      <i className={`${bold ? "bold" : ""} ${romanBase ? "roman" : ""}`.trim()}>{base}</i>
-      {scripts}
-      {tail}
-    </span>
-  );
+  return <Math tex={`${styledBase}${superscript}${subscript}${suffix}`} className="clt2-math" />;
 }
 
 function VectorGlyph({ tone = "orange" }: { tone?: "orange" | "blue" }) {
   return (
     <span className={`clt2-vector-glyph ${tone}`} aria-hidden="true">
-      <i /><i /><i /><b>···</b><i />
+      {Array.from({ length: 8 }, (_, index) => <i key={index} />)}
     </span>
-  );
-}
-
-function SourceCard({
-  layer,
-  selected,
-  onSelect,
-  inspect,
-}: {
-  layer: Layer;
-  selected: boolean;
-  onSelect: () => void;
-  inspect: (part: PartKey) => Record<string, () => void>;
-}) {
-  return (
-    <div className={`clt2-source-card ${selected ? "selected" : ""}`}>
-      <button className="clt2-source-title" onClick={onSelect} aria-pressed={selected}>
-        <span>{layer.label}</span>
-        <small>{selected ? "tracing downstream" : "trace this source"}</small>
-      </button>
-      <div className="clt2-source-flow">
-        <button className="clt2-node clt2-residual" {...inspect("input")}>
-          <MathTerm base="x" sub={`${layer.symbol},t`} bold />
-          <VectorGlyph tone="blue" />
-        </button>
-        <span aria-hidden="true">→</span>
-        <button className="clt2-node clt2-encoder" {...inspect("encoder")}>
-          <MathTerm base="W" sup="enc" sub={layer.symbol} bold supRoman />
-        </button>
-        <span aria-hidden="true">→</span>
-        <button className="clt2-node clt2-gate" {...inspect("gate")}>
-          <span className="clt2-gate-operator"><strong>JumpReLU</strong><i>+</i><strong>Top-K</strong></span>
-          <small>activation · sparsity</small>
-        </button>
-      </div>
-      <span className="clt2-down-arrow" aria-hidden="true">↓</span>
-      <button className="clt2-latent-vector" {...inspect("latent")} onClick={onSelect}>
-        <MathTerm base="z" sub={`${layer.symbol},t`} bold />
-        <VectorGlyph />
-      </button>
-    </div>
-  );
-}
-
-function PathCell({
-  mode,
-  source,
-  target,
-  valid,
-  sourceSelected,
-  targetSelected,
-  onSelect,
-  inspect,
-}: {
-  mode: Mode;
-  source: Layer;
-  target: Layer;
-  valid: boolean;
-  sourceSelected: boolean;
-  targetSelected: boolean;
-  onSelect: () => void;
-  inspect: (part: PartKey) => Record<string, () => void>;
-}) {
-  if (!valid) {
-    return <div className="clt2-path-cell invalid" aria-label={`No path from ${source.label} to ${target.label}`}>—</div>;
-  }
-
-  const intersection = sourceSelected && targetSelected;
-  return (
-    <button
-      className={`clt2-path-cell valid ${sourceSelected ? "source-selected" : ""} ${targetSelected ? "target-selected" : ""} ${intersection ? "intersection" : ""}`}
-      {...inspect("path")}
-      onClick={onSelect}
-      aria-label={`${mode === "latent" ? "Latent mixing coefficient" : "Direct decoder direction"} from ${source.label} to ${target.label}`}
-    >
-      <span className="clt2-route-end source" aria-hidden="true">{source.symbol}</span>
-      <span className="clt2-route-track" aria-hidden="true">
-        <span className="clt2-route-label">
-          {mode === "latent" ? (
-            <MathTerm base="γ" sup={`${source.symbol}→${target.symbol}`} sub="a" bold />
-          ) : (
-            <MathTerm base="w" sup={`${source.symbol}→${target.symbol}`} sub="a" bold />
-          )}
-        </span>
-      </span>
-      <span className="clt2-route-end target" aria-hidden="true">{target.symbol}</span>
-    </button>
   );
 }
 
@@ -239,7 +163,7 @@ export default function InteractiveCltArchitecture() {
             <span>Direct CLT</span><small>independent directions</small>
           </button>
           <button className={mode === "latent" ? "active" : ""} onClick={() => { setMode("latent"); setPart("path"); }}>
-            <span>Latent mixing</span><small>shared direction + γ</small>
+            <span>Latent mixing</span><small>shared direction + <Math tex={String.raw`\gamma`} /></small>
           </button>
         </div>
       </header>
@@ -247,8 +171,8 @@ export default function InteractiveCltArchitecture() {
       <div className="clt2-summary" aria-live="polite">
         <p>
           {mode === "latent"
-            ? <>Mix source activations <em>inside ℝᴹ</em>, then decode once per output layer.</>
-            : <>Decode every source–target pair with an <em>independent ℝᵈ direction</em>.</>}
+            ? <>Mix source activations <em>inside <Math tex={String.raw`\mathbb{R}^{M}`} /></em>, then decode once per output layer.</>
+            : <>Decode every source–target pair with an <em>independent <Math tex={String.raw`\mathbb{R}^{d}`} /> direction</em>.</>}
         </p>
         <div>
           <span>{mode === "latent" ? "8.764B" : "152.32B"}<small>decoder parameters</small></span>
@@ -301,7 +225,7 @@ export default function InteractiveCltArchitecture() {
             <span>{mode === "latent" ? "featurewise cross-layer coefficients" : "independent decoder blocks · each M × d"}</span>
             <div className={`clt2-route-target-head ${mode}`}>
               <span>target-layer reconstruction</span>
-              {mode === "latent" && <strong>output-specific latent state · ℝᴹ</strong>}
+              {mode === "latent" && <strong>output-specific latent state · <Math tex={String.raw`\mathbb{R}^{M}`} /></strong>}
             </div>
           </div>
 
@@ -357,7 +281,7 @@ export default function InteractiveCltArchitecture() {
                           ) : (
                             <>
                               <MathTerm base="W" sup={`${sourceLayer.symbol}→${targetLayer.symbol}`} sub="a" bold />
-                              <small>M × d</small>
+                              <small><Math tex={String.raw`M\times d`} /></small>
                             </>
                           )}
                         </button>
@@ -372,7 +296,7 @@ export default function InteractiveCltArchitecture() {
                 const targetSelected = selectedSource.rank <= targetLayer.rank;
                 return (
                   <div className={`clt2-route-target ${targetSelected ? "selected" : ""}`} key={targetLayer.key}>
-                    <button className="clt2-sum-node" {...inspect("sum")} aria-label={`Sum contributions for ${targetLayer.label}`}>Σ</button>
+                    <button className="clt2-sum-node" {...inspect("sum")} aria-label={`Sum contributions for ${targetLayer.label}`}><Math tex={String.raw`\Sigma`} /></button>
                     <span className="clt2-flow-arrow" aria-hidden="true">→</span>
 
                     {mode === "latent" && (
@@ -383,7 +307,7 @@ export default function InteractiveCltArchitecture() {
                         </button>
                         <span className="clt2-flow-arrow" aria-hidden="true">→</span>
                         <div className="clt2-decoder-stack">
-                          <small><strong>M × d</strong></small>
+                          <small><strong><Math tex={String.raw`M\times d`} /></strong></small>
                           <button className="clt2-decoder-node" {...inspect("decoder")}>
                             <MathTerm base="W" sup="dec" sub={targetLayer.symbol} bold supRoman />
                           </button>
@@ -405,15 +329,30 @@ export default function InteractiveCltArchitecture() {
           <div className="clt2-factorization">
             {mode === "latent" ? (
               <>
-                <span>The factorization</span>
-                <strong><MathTerm base="w" sup="s→ℓ" sub="a" bold /> = <MathTerm base="γ" sup="s→ℓ" sub="a" /> · <MathTerm base="w" sup="dec" sub="ℓ,a" bold supRoman /></strong>
-                <p>L × (M × d) base blocks + ½L(L+1) × M scalars</p>
+                <span>Decoder form</span>
+                <strong><Math tex={String.raw`\mathbf{w}_{a}^{s\to\ell}=\gamma_{a}^{s\to\ell}\cdot\mathbf{w}_{\ell,a}^{\mathrm{dec}}`} /></strong>
+                <p><small>Interpretation</small>Shared output-layer direction with source-specific strength</p>
               </>
             ) : (
               <>
-                <span>No factorization</span>
-                <strong><MathTerm base="w" sup="s→ℓ" sub="a" bold /> <small>learned independently</small></strong>
-                <p>½L(L+1) × (M × d) decoder blocks</p>
+                <span>Decoder form</span>
+                <strong><Math tex={String.raw`\mathbf{w}_{a}^{s\to\ell}`} /></strong>
+                <p><small>Interpretation</small>Independent direction for each <Math tex={String.raw`(s,\ell,a)`} /></p>
+              </>
+            )}
+          </div>
+          <div className="clt2-factorization clt2-parameter-count">
+            {mode === "latent" ? (
+              <>
+                <span>Decoder parameters</span>
+                <strong><Math tex={String.raw`LMd+\tfrac12L(L+1)M\approx8.764\mathrm{B}`} /></strong>
+                <p><small>Reduction</small>17.4× smaller</p>
+              </>
+            ) : (
+              <>
+                <span>Decoder parameters</span>
+                <strong><Math tex={String.raw`\tfrac12L(L+1)Md=152.32\mathrm{B}`} /></strong>
+                <p><small>Scale</small>Reference parameterization</p>
               </>
             )}
           </div>
@@ -428,7 +367,7 @@ export default function InteractiveCltArchitecture() {
 
       <figcaption>
         <strong>Figure 1.</strong>
-        <span>Layer-specific encoders place sparse activations in one shared M-dimensional latent coordinate system. The triangular map shows that a source at layer s may write to every output layer ℓ ≥ s. Latent mixing replaces each independent cross-layer decoder direction with a scalar γ and one output-layer base direction.</span>
+        <span>Layer-specific encoders place sparse activations in one shared <Math tex="M" />-dimensional latent coordinate system. The triangular map shows that a source at layer <Math tex="s" /> may write to every output layer <Math tex={String.raw`\ell\geq s`} />. Latent mixing replaces each independent cross-layer decoder direction with a scalar <Math tex={String.raw`\gamma`} /> and one output-layer base direction.</span>
       </figcaption>
     </figure>
   );

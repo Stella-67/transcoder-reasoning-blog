@@ -1,0 +1,970 @@
+<h3 class='sectionHead' id='introduction'><span class='titlemark'>1   </span>   <a id='x1-10001'></a>Introduction</h3>
+                                                                                         
+                                                                                         
+<!-- l. 72 --><p class='noindent'>Language models learn solution strategies from data and encode them in largely opaque, high-dimensional
+computations, making it difficult to determine how their capabilities are implemented. Mechanistic
+interpretability addresses this problem by explaining model outputs in terms of internal computation.
+Existing approaches operate at several levels: residual-stream and attention analyses trace
+information through architectural components [<a href='#Xelhage2021framework'>8</a>]; ablation, activation patching, and targeted editing
+test whether components are causally necessary [<a href='#Xconmy2023acdc'>6</a>, <a href='#Xmeng2022rome'>18</a>, <a href='#Xsyed2023attribution'>21</a>]; and dictionary-learning methods
+decompose dense activations into sparse features that can be described in human terms [<a href='#Xbricken2023monosemanticity'>5</a>, <a href='#Xtempleton2024scaling'>23</a>].
+Transcoders are particularly useful for circuit analysis because they reconstruct a component’s
+output from its input, turning an MLP computation into a set of interpretable feature units
+[<a href='#Xdunefsky2024transcoders'>7</a>].
+</p><!-- l. 74 --><p class='indent'>   Recent work combines <span class='ec-lmri-10x-x-109'>cross-layer transcoders </span>(CLTs) with <span class='ec-lmri-10x-x-109'>attribution graphs </span>to describe model
+computation as prompt-specific circuits of sparse features. Ameisen et al. [<a href='#Xameisen2025circuit'>1</a>] train CLTs to approximate
+transformer MLP computations and use them to construct an interpretable local replacement model.
+Attribution graphs derived from this model represent active features as nodes and direct linear
+attributions between them as edges. Their methodology also includes graph pruning and visualization for
+interpreting these circuits, together with perturbation experiments that test graph-derived interactions
+and evaluate the replacement model’s mechanistic faithfulness. Lindsey et al. [<a href='#Xlindsey2025biology'>15</a>] apply this framework
+to Claude 3.5 Haiku across behaviors including multi-step reasoning, planning, multilingual processing,
+and hallucination.
+</p><!-- l. 76 --><!-- l. 78 --><p class='indent'>   Our main contributions are as follows: </p>
+     <ul class='itemize1'>
+     <li class='itemize'>We develop a parameter-efficient latent-mixing CLT for Gemma-3-4B-IT [<a href='#Xgemma3'>11</a>], providing a
+     sparse feature basis for circuit analysis.
+     </li>
+     <li class='itemize'>We construct attribution graphs for factual and mathematical reasoning and assess their use
+     for candidate discovery. The graphs surface meaningful features, while Neumann scores do
+     not directly recover measured single-feature effects.
+     </li>
+     <li class='itemize'>We characterize L22:F31850 as a sentence-boundary continuation axis that strongly changes
+     reasoning  layout,  while  its  effect  on  AIME  accuracy  remains  modest  in  aggregate  and
+     heterogeneous across problems.</li></ul>
+   
+   <h3 class='sectionHead' id='preliminaries-featurelevel-circuit-discovery'><span class='titlemark'>2   </span>   <a id='x1-20002'></a>Preliminaries: Feature-Level Circuit Discovery</h3>
+   
+   <h4 class='subsectionHead' id='motivation-from-residual-streams-to-crosslayer-features'><span class='titlemark'>2.1   </span>   <a id='x1-30002.1'></a>Motivation: From Residual Streams to Cross-Layer Features</h4>
+   
+                                                                                         
+                                                                                         
+<!-- l. 92 --><p class='noindent'><span class='paragraphHead' id='residual-streams-analysis-confounded-by-superposition'> <a id='x1-4000'></a><span class='ec-lmbx-10x-x-109'>Residual streams analysis confounded by superposition</span></span>
+   Before a circuit can be drawn, we must decide what its nodes are. The transformer’s own architecture
+is the obvious place to look. In the standard residual-stream account [<a href='#Xelhage2021framework'>8</a>], every attention and MLP
+sublayer reads from a shared residual state and writes an additive update that all later sublayers can read.
+This is a precise map of <span class='ec-lmri-10x-x-109'>where </span>information can move, but it is silent on <span class='ec-lmri-10x-x-109'>what </span>is computed in interpretable
+terms. And for that question the architectural units fail at both grains. Attention heads and MLP
+blocks are too coarse to be semantic units; individual neurons are too entangled, since features
+live in superposition rather than one-per-neuron [<a href='#Xbricken2023monosemanticity'>5</a>, <a href='#Xtempleton2024scaling'>23</a>]. A single residual-stream direction
+mixes several concepts, and the nonlinear map an MLP computes does not decompose into
+readable feature-to-feature edges. The units we want are not in the architecture; they have to be
+learned.
+   
+</p>
+<!-- l. 95 --><p class='noindent'><span class='paragraphHead' id='transcoders-supply-computational-units'> <a id='x1-5000'></a><span class='ec-lmbx-10x-x-109'>Transcoders supply computational units.</span></span>
+   Learning the units is exactly what Anthropic’s transcoder method does: it keeps the transformer’s
+residual stream, attention, and normalization, but re-expresses each MLP through a learned sparse feature
+model [<a href='#Xameisen2025circuit'>1</a>]. Which sparse model to learn is not a free choice. A sparse autoencoder reconstructs an
+activation vector, so it answers a representational question: what is <span class='ec-lmri-10x-x-109'>present </span>in a residual state. A
+transcoder instead reconstructs the <span class='ec-lmri-10x-x-109'>output of a model component </span>from that component’s input [<a href='#Xdunefsky2024transcoders'>7</a>], so it
+answers a computational question: how to decompose the computation in the MLP into interpretable
+<span class='ec-lmri-10x-x-109'>units</span>. The computational question is the one circuit analysis asks. Concretely, a transcoder rewrites the
+MLP’s nonlinear input–output map as sparse feature activations followed by decoder writes; once
+attention patterns, normalization denominators, and feature masks are frozen for a prompt, the
+replacement is locally linear and direct feature-to-feature effects are well defined [<a href='#Xameisen2025circuit'>1</a>]. The resulting division
+of labor runs through the whole paper: the residual stream determines where an intervention can
+propagate, and the transcoder features supply the units that can be named, ranked, and causally
+edited.
+   
+</p>
+<!-- l. 98 --><p class='noindent'><span class='paragraphHead' id='crosslayer-transcoders-removes-perlayer-fragmentation'> <a id='x1-6000'></a><span class='ec-lmbx-10x-x-109'>Cross-layer transcoders removes per-layer fragmentation.</span></span>
+   One obstacle remains. A plain transcoder gives each layer its own private dictionary, so a concept the
+model carries through many layers reappears as a different, formally unrelated feature at every depth. A
+<span class='ec-lmri-10x-x-109'>cross-layer </span>transcoder removes this fragmentation: a CLT feature reads from the residual stream at its
+source layer and may write into the reconstructed MLP outputs of that layer and all later ones [<a href='#Xameisen2025circuit'>1</a>]. A
+feature thereby becomes a node in a cross-layer computation rather than a layer-local proxy, and an
+attribution path can run through the one feature whose activation and downstream writes explain the
+computation, rather than through a chain of per-layer stand-ins. In this paper the feature basis is trained
+for Gemma-3-4B-IT, a <span class='rm-lmr-10x-x-109'>34</span>-layer, width-<span class='rm-lmr-10x-x-109'>2560 </span>decoder-only transformer [<a href='#Xgemma3'>11</a>], with <span class='lmmi-10x-x-109'>M </span><span class='rm-lmr-10x-x-109'>= 100</span><span class='lmmi-10x-x-109'>,</span><span class='rm-lmr-10x-x-109'>800</span>
+features per layer and a structural top-<span class='lmmi-10x-x-109'>k </span>sparsity cap of <span class='rm-lmr-10x-x-109'>500 </span>active features per token and
+layer.
+   
+</p>
+   <h4 class='subsectionHead' id='overview-candidate-feature-discovery-and-intervention-with-clts'><span class='titlemark'>2.2   </span>   <a id='x1-70002.2'></a>Overview: Candidate Feature Discovery and Intervention with CLTs</h4>
+                                                                                         
+                                                                                         
+   
+<!-- l. 103 --><p class='noindent'><span class='paragraphHead' id='the-clt-lets-us-score-each-features-contribution-to-a-prediction'> <a id='x1-8000'></a><span class='ec-lmbx-10x-x-109'>The CLT lets us score each feature’s contribution to a prediction.</span></span>
+   With a CLT in place, we can build an <span class='ec-lmri-10x-x-109'>attribution graph </span>for a chosen prompt and target
+logit. Its nodes are the active CLT features, the input tokens, and the output logits, and its
+edges measure how strongly each node influences another. Following the local-replacement
+construction of Ameisen et al. [<a href='#Xameisen2025circuit'>1</a>], the transformer’s nonlinear quantities—attention patterns,
+normalization denominators, and the sparse feature masks—are frozen at the values they
+take on the prompt, so that feature-to-feature effects can be read off by backpropagating
+through the resulting linear graph. We use this same machinery to recover readable circuits
+[<a href='#Xameisen2025circuit'>1</a>, <a href='#Xlindsey2025biology'>15</a>].
+   
+</p>
+<!-- l. 106 --><p class='noindent'><span class='paragraphHead' id='attribution-proposes-intervention-verifies'> <a id='x1-9000'></a><span class='ec-lmbx-10x-x-109'>Attribution proposes; intervention verifies.</span></span>
+   Where this paper is deliberately conservative is in how much such a graph is allowed to claim. An edge
+weight, or a Neumann path-sum aggregating many edges, is an attribution score <span class='ec-lmri-10x-x-109'>inside a local
+linearization</span>; it need not equal the change one would measure by actually intervening on the feature in
+the full nonlinear model. We therefore treat the attribution graph only as a hypothesis generator and let
+intervention adjudicate. From this point on, the behavior under study is fixed: at a sentence-ending period
+in an AIME-style reasoning trace, Gemma-3-4B-IT can stop, emit a newline, or carry the argument
+forward with a logical connective such as   <span class='ec-lmtt-10x-x-109'>We</span>,   <span class='ec-lmtt-10x-x-109'>However</span>,   <span class='ec-lmtt-10x-x-109'>Since</span>, or   <span class='ec-lmtt-10x-x-109'>So</span>, and we look for
+the feature-level circuits that incentivize the connective continuation. Concretely, the study
+proceeds in three steps: (i) we train a CLT for Gemma-3-4B-IT and build an attribution graph
+toward such a connective logit; (ii) we read off the handful of features it ranks highest as
+candidates for that behavior; and (iii) we put the leading candidate through explicit perturbation
+experiments—a fixed-prompt linear diagnostic that isolates its direct token-level effect, followed by
+autoregressive AIME generation that measures its behavioral consequences—keeping a causal
+claim only where the intervention supports it. This carries down to individual features the
+discipline the broader circuit-discovery literature applies to candidate subgraphs, which are
+validated by ablation, patched execution, or masked-model fidelity rather than by saliency alone
+[<a href='#Xbhaskar2024edgepruning'>3</a>, <a href='#Xconmy2023acdc'>6</a>, <a href='#Xsyed2023attribution'>21</a>, <a href='#Xyu2024discogp'>29</a>].
+   
+</p>
+<!-- l. 109 --><p class='noindent'><span class='paragraphHead' id='roadmap'> <a id='x1-10000'></a><span class='ec-lmbx-10x-x-109'>Roadmap.</span></span>
+   The rest of the paper instantiates this pipeline. Section <a href='#crosslayer-transcoder-formulation'>3<!-- tex4ht:ref: sec:clt  --></a> defines the CLT architecture and training
+objective used to reconstruct Gemma-3-4B-IT’s MLP outputs. Section <a href='#attribution-as-candidate-discovery'>4<!-- tex4ht:ref: sec:attribution  --></a> constructs prompt-specific
+attribution graphs and explains how Neumann scores are turned into the displayed graphs.
+Section <a href='#selecting-and-validating-the-target-feature'>5<!-- tex4ht:ref: sec:selection  --></a> selects L22:F31850 from recurrent attribution candidates and validates it by direct
+perturbation, first in a fixed-prompt linear diagnostic and then during autoregressive AIME
+generation. The case study that survives this pipeline is L22:F31850: attribution surfaces it in
+<span class='ec-lmtt-10x-x-109'>However</span>-continuation contexts, but intervention shows that its causal role is broader, namely
+suppressing newline/stop behavior at period positions and promoting continued mathematical
+prose.
+   
+                                                                                         
+                                                                                         
+</p>
+   <h3 class='sectionHead' id='crosslayer-transcoder-formulation'><span class='titlemark'>3   </span>   <a id='x1-110003'></a>Cross-Layer Transcoder Formulation</h3>
+   
+   <h4 class='subsectionHead' id='transformer-background'><span class='titlemark'>3.1   </span>   <a id='x1-120003.1'></a>Transformer Background</h4>
+<!-- l. 118 --><p class='noindent'>Gemma-3-4B-IT [<a href='#Xgemma3'>11</a>] is a decoder-only transformer [<a href='#Xradford2019language'>20</a>, <a href='#Xvaswani2017attention'>28</a>] that predicts the next token at every position
+of an input sequence <span class='lmmi-10x-x-109'>u</span><sub><span class='rm-lmr-8'>1</span></sub><span class='lmmi-10x-x-109'>,…,u</span><sub><span class='lmmi-8'>T</span> </sub>. At each position <span class='lmmi-10x-x-109'>t </span>it maintains a <span class='ec-lmri-10x-x-109'>residual stream </span>vector of width <span class='lmmi-10x-x-109'>d </span>[<a href='#Xelhage2021framework'>8</a>],
+whose state entering layer <span class='lmmi-10x-x-109'>ℓ </span>we write <span class='rm-lmbx-10x-x-109'>h</span><sub><span class='lmmi-8'>ℓ,t</span></sub> <span class='lmsy-10x-x-109'>∈</span><span class='msbm-10x-x-109'>ℝ</span><sup><span class='lmmi-8'>d</span></sup>, with
+</p>
+   <div class='math-display'>
+<img alt='h1,t = Embed (ut).' class='math-display' src='/paper-math/main0x.svg' /></div>
+<!-- l. 122 --><p class='indent'>   Here <span class='rm-lmr-10x-x-109'>Embed</span> maps each vocabulary token to a learned <span class='lmmi-10x-x-109'>d</span>-dimensional vector. Each of the <span class='lmmi-10x-x-109'>L </span>layers adds
+two sublayer outputs to the stream: the attention output
+</p>
+   <div class='math-display'>
+<img alt=' attn
+oℓ,t  = Attnℓ(hℓ,1,...,hℓ,t),' class='math-display' src='/paper-math/main1x.svg' /></div>
+<!-- l. 127 --><p class='indent'>   which reads the stream at all positions up to <span class='lmmi-10x-x-109'>t</span>, and the MLP output
+</p>
+   <div class='math-display'>
+<img alt='m ℓ,t = MLP ℓ(xℓ,t),' class='math-display' src='/paper-math/main2x.svg' /></div>
+<!-- l. 131 --><p class='indent'>   computed position-wise from
+                                                                                         
+                                                                                         
+</p>
+   <div class='math-display'>
+<img alt='x ℓ,t = h ℓ,t + oaℓt,ttn,' class='math-display' src='/paper-math/main3x.svg' /></div>
+<!-- l. 135 --><p class='indent'>   the stream state after the attention update. After the final layer, an unembedding map turns the final
+state <span class='rm-lmbx-10x-x-109'>h</span><sub><span class='lmmi-8'>L</span><span class='rm-lmr-8'>+1</span><span class='lmmi-8'>,t</span></sub> into the next-token distribution.
+</p><!-- l. 137 --><p class='indent'>   The MLP sublayers are our focus. Substantial evidence indicates that they store much of a
+transformer’s factual and conceptual knowledge: they behave as key–value memories whose value vectors
+promote concrete output tokens [<a href='#Xgeva2021kv'>12</a>], and localized edits to mid-layer MLPs can rewrite specific
+factual associations [<a href='#Xmeng2022rome'>18</a>]. Yet they are difficult to interpret neuron by neuron. Individual hidden
+neurons are <span class='ec-lmri-10x-x-109'>polysemantic</span>, participating in many unrelated behaviors, which is what one expects
+when a layer represents more features than it has neurons by placing them in superposition
+[<a href='#Xbricken2023monosemanticity'>5</a>, <a href='#Xelhage2022superposition'>9</a>].
+   
+</p>
+   <h4 class='subsectionHead' id='from-transcoders-to-crosslayer-transcoders'><span class='titlemark'>3.2   </span>   <a id='x1-130003.2'></a>From Transcoders to Cross-Layer Transcoders</h4>
+   
+<!-- l. 141 --><p class='noindent'><span class='paragraphHead' id='transcoders'> <a id='x1-14000'></a><span class='ec-lmbx-10x-x-109'>Transcoders.</span></span>
+   Following prior work [<a href='#Xdunefsky2024transcoders'>7</a>, <a href='#Xmarks2023dictionarylearning'>13</a>, <a href='#Xtempleton2024predicting'>22</a>], a <span class='ec-lmri-10x-x-109'>transcoder </span>addresses this mismatch with a sparse dictionary model
+trained to reproduce the output of an MLP sublayer from its input, thereby re-expressing the map
+<span class='rm-lmbx-10x-x-109'>x</span><sub><span class='lmmi-8'>ℓ,t</span></sub><span class='inline-math-symbol mapsto-symbol' aria-label='maps to'>↦</span><span class='rm-lmbx-10x-x-109'>m</span><sub><span class='lmmi-8'>ℓ,t</span></sub> in a more interpretable, approximately <span class='ec-lmri-10x-x-109'>monosemantic </span>feature basis: each feature corresponds
+to a single, human-describable concept or behavior, in contrast to the polysemantic raw MLP
+neurons.
+</p><!-- l. 144 --><p class='indent'>   Concretely, a layer-<span class='lmmi-10x-x-109'>ℓ </span>transcoder encodes the residual input <span class='rm-lmbx-10x-x-109'>x</span><sub><span class='lmmi-8'>ℓ,t</span></sub> into a high-dimensional vector of
+<span class='ec-lmri-10x-x-109'>feature </span>activations <span class='rm-lmbx-10x-x-109'>z</span><sub><span class='lmmi-8'>ℓ,t</span></sub> and decodes those features back into an approximation <span class='inline-math-token'><span class='inline-math-symbol widehat-symbol'>m&#770;</span><sub><span class='lmmi-8'>ℓ,t</span></sub></span> of the true MLP
+output <span class='rm-lmbx-10x-x-109'>m</span><sub><span class='lmmi-8'>ℓ,t</span></sub>:
+</p>
+   <table class='equation'><tr><td>
+   <div class='math-display'>
+<img alt='zℓ,t = TopK(JumpReLU(Wencℓ(xℓ,t + bpreℓ) + bencℓ)) ∈ ℝM; m̂ℓ,t = Wdecℓ zℓ,t + bdecℓ.' class='math-display' src='/paper-math/main6x.svg' /><a id='x1-14001r1'></a></div>
+   </td><td class='equation-label'>(1)</td></tr></table>
+                                                                                         
+                                                                                         
+<!-- l. 160 --><p class='nopar'>where <span class='lmmi-10x-x-109'>M </span><span class='lmsy-10x-x-109'>≫</span><span class='lmmi-10x-x-109'>d </span>is the number of features, <span class='rm-lmbx-10x-x-109'>W</span><span class='rm-lmr-8'>enc</span><sub><span class='lmmi-8'>ℓ</span></sub> <span class='lmsy-10x-x-109'>∈</span><span class='msbm-10x-x-109'>ℝ</span><sup><span class='lmmi-8'>M</span><span class='lmsy8-'>×</span><span class='lmmi-8'>d</span></sup> is the encoder matrix, and <span class='rm-lmbx-10x-x-109'>W</span><sub><span class='lmmi-8'>ℓ</span></sub><sup><span class='rm-lmr-8'>dec</span></sup> <span class='lmsy-10x-x-109'>∈</span><span class='msbm-10x-x-109'>ℝ</span><sup><span class='lmmi-8'>d</span><span class='lmsy8-'>×</span><span class='lmmi-8'>M</span></sup> is the decoder matrix. The vector <span class='rm-lmbx-10x-x-109'>b</span><sub><span class='lmmi-8'>ℓ</span></sub><sup><span class='rm-lmr-8'>pre</span></sup> <span class='lmsy-10x-x-109'>∈</span><span class='msbm-10x-x-109'>ℝ</span><sup><span class='lmmi-8'>d</span></sup> recenters the encoder input, while <span class='rm-lmbx-10x-x-109'>b</span><sub><span class='lmmi-8'>ℓ</span></sub><sup><span class='rm-lmr-8'>enc</span></sup> and <span class='rm-lmbx-10x-x-109'>b</span><sub><span class='lmmi-8'>ℓ</span></sub><sup><span class='rm-lmr-8'>dec</span></sup> are learned encoder and decoder biases. JumpReLU applies the learned feature thresholds and Top-<span class='lmmi-10x-x-109'>K </span>retains only the strongest active coordinates. Column <span class='lmmi-10x-x-109'>a </span>of <span class='rm-lmbx-10x-x-109'>W</span><sub><span class='lmmi-8'>ℓ</span></sub><sup><span class='rm-lmr-8'>dec</span></sup> is the decoder direction <span class='rm-lmbx-10x-x-109'>w</span><sub><span class='lmmi-8'>ℓ,a</span></sub> <span class='lmsy-10x-x-109'>∈</span><span class='msbm-10x-x-109'>ℝ</span><sup><span class='lmmi-8'>d</span></sup> for feature <span class='lmmi-10x-x-109'>a</span>. The parameters are trained to minimize the reconstruction error <span class='lmsy-10x-x-109'>∥</span><span class='inline-math-token'><span class='inline-math-symbol widehat-symbol'>m&#770;</span><sub><span class='lmmi-8'>ℓ,t</span></sub></span> <span class='lmsy-10x-x-109'>−</span><span class='rm-lmbx-10x-x-109'>m</span><sub><span class='lmmi-8'>ℓ,t</span></sub><span class='lmsy-10x-x-109'>∥</span><sup><span class='rm-lmr-8'>2</span></sup> while the transformer itself stays frozen.
+   
+</p>
+<!-- l. 157 --><p class='noindent'><span class='paragraphHead' id='perlayer-dictionaries-do-not-capture-crosslayer-structure'> <a id='x1-15000'></a><span class='ec-lmbx-10x-x-109'>Per-layer dictionaries do not capture cross-layer structure.</span></span>
+   The plain transcoder of Equation (<a href='#x1-14001r1'>1<!-- tex4ht:ref: eq:plain-transcoder  --></a>) learns an independent feature dictionary at each layer. However,
+information written to the residual stream can persist and be read or modified by later layers. Separate
+dictionaries may therefore encode the same underlying feature repeatedly at different depths, producing
+attribution graphs with duplicate nodes connected by mostly uninformative identity-like edges [<a href='#Xlindsey2024crosscoders'>14</a>]. Such
+graphs make it difficult to distinguish the persistence of an existing feature from the creation of a new
+computation.
+   
+</p>
+<!-- l. 160 --><p class='noindent'><span class='paragraphHead' id='crosslayer-transcoders'> <a id='x1-16000'></a><span class='ec-lmbx-10x-x-109'>Cross-layer transcoders.</span></span>
+   A <span class='ec-lmri-10x-x-109'>cross-layer transcoder </span>(CLT) [<a href='#Xameisen2025circuit'>1</a>] addresses this problem by allowing each feature to
+model effects across multiple layers. Rather than reconstructing only the MLP output at its
+source layer, a feature encoded at layer <span class='lmmi-10x-x-109'>s </span>can decode into the MLP outputs of layer <span class='lmmi-10x-x-109'>s </span>and
+all later layers. Its downstream influence can therefore be represented by one feature node
+instead of being rediscovered separately at each layer, yielding a more compact attribution
+graph.
+</p><!-- l. 163 --><p class='indent'>   Formally, a direct CLT extends Equation (<a href='#x1-14001r1'>1<!-- tex4ht:ref: eq:plain-transcoder  --></a>) by allowing a source-layer feature to decode into all
+downstream MLP outputs:
+</p>
+   <table class='equation'><tr><td>
+   <div class='math-display'>
+<img alt='       ∑  M∑
+^m ℓ,t =       zs,t,awsa→ ℓ+ bdℓec.
+       s≤ ℓa=1' class='math-display' src='/paper-math/main8x.svg' /><a id='x1-16001r2'></a></div>
+   </td><td class='equation-label'>(2)</td></tr></table>
+<!-- l. 171 --><p class='nopar'>Here <span class='lmmi-10x-x-109'>s </span>indexes source layers, <span class='lmmi-10x-x-109'>ℓ </span>indexes output (decode) layers, <span class='lmmi-10x-x-109'>a </span>indexes features, and <span class='lmmi-10x-x-109'>z</span><sub><span class='lmmi-8'>s,t,a</span></sub> is the feature
+activation of Equation (<a href='#x1-14001r1'>1<!-- tex4ht:ref: eq:plain-transcoder  --></a>) computed at source layer <span class='lmmi-10x-x-109'>s</span>. Every pair <span class='rm-lmr-10x-x-109'>(</span><span class='lmmi-10x-x-109'>s,ℓ</span><span class='rm-lmr-10x-x-109'>) </span>with <span class='lmmi-10x-x-109'>s </span><span class='lmsy-10x-x-109'>≤</span><span class='lmmi-10x-x-109'>ℓ </span>owns its own decoder
+direction <span class='rm-lmbx-10x-x-109'>w</span><sub><span class='lmmi-8'>a</span></sub><sup><span class='lmmi-8'>s</span><span class='lmsy8-'>→</span><span class='lmmi-8'>ℓ</span></sup>, allowing one feature to make layer-specific contributions across depth without being
+duplicated at every layer.
+   
+                                                                                         
+                                                                                         
+</p>
+   <h4 class='subsectionHead' id='latentmixing-clt'><span class='titlemark'>3.3   </span>   <a id='x1-170003.3'></a>Latent-Mixing CLT</h4>
+   
+<!-- l. 176 --><p class='noindent'><span class='paragraphHead' id='parameter-cost-of-the-direct-clt'> <a id='x1-18000'></a><span class='ec-lmbx-10x-x-109'>Parameter cost of the direct CLT.</span></span>
+   Ignoring biases, the <span class='lmmi-10x-x-109'>L </span>encoder matrices require <span class='lmmi-10x-x-109'>LMd </span>parameters. The direct decoder assigns an <span class='lmmi-10x-x-109'>M </span><span class='lmsy-10x-x-109'>×</span><span class='lmmi-10x-x-109'>d</span>
+block to every source–output pair <span class='rm-lmr-10x-x-109'>(</span><span class='lmmi-10x-x-109'>s,ℓ</span><span class='rm-lmr-10x-x-109'>) </span>with <span class='lmmi-10x-x-109'>s </span><span class='lmsy-10x-x-109'>≤</span><span class='lmmi-10x-x-109'>ℓ</span>, and therefore requires
+</p>
+   <div class='math-display'>
+<img alt=' L
+∑  (L − s+ 1)M d = L-(L-+-1)M d
+s=1                    2' class='math-display' src='/paper-math/main9x.svg' /></div>
+<!-- l. 182 --><p class='indent'>   parameters [<a href='#Xefficient_transcoder_notes'>25</a>]. For Gemma-3-4B-IT [<a href='#Xgemma3'>11</a>], with <span class='lmmi-10x-x-109'>L </span><span class='rm-lmr-10x-x-109'>= 34</span>, <span class='lmmi-10x-x-109'>d </span><span class='rm-lmr-10x-x-109'>= 2560</span>, and <span class='lmmi-10x-x-109'>M </span><span class='rm-lmr-10x-x-109'>= 100</span><span class='lmmi-10x-x-109'>,</span><span class='rm-lmr-10x-x-109'>000</span>, the encoder and
+direct decoder contain <span class='rm-lmr-10x-x-109'>8</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>704 </span>billion and <span class='rm-lmr-10x-x-109'>152</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>32 </span>billion parameters, respectively, for <span class='rm-lmr-10x-x-109'>161</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>024 </span>billion
+parameters in total, excluding biases, making the direct parameterization prohibitively expensive to
+train.
+</p>
+   
+   
+<!-- l. 191 --><p class='noindent'><span class='paragraphHead' id='latent-mixing'> <a id='x1-19000'></a><span class='ec-lmbx-10x-x-109'>Latent mixing.</span></span>
+   To make cross-layer decoding tractable, our design introduces a shared <span class='lmmi-10x-x-109'>M</span>-dimensional latent
+representation in which source-layer features are mixed before being mapped to each output layer by a
+single decoder (Figure <a href='#latentmixing-clt-architecture-each-layers-residual-xst-is-projected-by-a-layerspecific-encoder-w-encs-into-a-shared-mdimensional-latent-coordinate-system-featurewise-crosslayer-coefficients-boldsymbol-boldsymbol-s-then-mix-the-sourcelayer-activations-into-each-output-layer-s-where-an-outputlayer-base-decoder-w-dec-reconstructs-the-mlp-output-m-0362-m-t-equations-eqcrosslayermix-eqlatentmixingdecode'>1<!-- tex4ht:ref: fig:clt-architecture  --></a>). Concretely, the feature activation vectors <span class='rm-lmbx-10x-x-109'>z</span><sub><span class='lmmi-8'>s,t</span></sub> <span class='lmsy-10x-x-109'>∈</span><span class='msbm-10x-x-109'>ℝ</span><sup><span class='lmmi-8'>M</span></sup> from all source layers use
+the same latent coordinates. For each output layer <span class='lmmi-10x-x-109'>ℓ</span>, the vectors with <span class='lmmi-10x-x-109'>s </span><span class='lmsy-10x-x-109'>≤</span><span class='lmmi-10x-x-109'>ℓ </span>are mixed featurewise to form
+an output-specific latent representation <span class='inline-math-token'><span class='inline-math-symbol widetilde-symbol'>z&#771;</span><sub><span class='lmmi-8'>ℓ,t</span></sub></span> <span class='lmsy-10x-x-109'>∈</span><span class='msbm-10x-x-109'>ℝ</span><sup><span class='lmmi-8'>M</span></sup>:
+</p>
+   <table class='equation'><tr><td>
+   <div class='math-display'>
+<img alt='      ∑
+～zℓ,t =    γs→ ℓ ⊙ zs,t,   γs→ ℓ ∈ ℝM ,
+      s≤ℓ' class='math-display' src='/paper-math/main13x.svg' /><a id='x1-19001r3'></a></div>
+   </td><td class='equation-label'>(3)</td></tr></table>
+<!-- l. 201 --><p class='nopar'>where <span class='lmsy-10x-x-109'>⊙ </span>denotes elementwise multiplication. Finally, an output-layer base decoder maps this latent
+representation to the reconstructed MLP output:
+</p>
+   <table class='equation'><tr><td>
+   <div class='math-display'>
+<img alt='^m ℓ,t = Wdec ⊤～zℓ,t + bdec,    Wdec  ∈ ℝM ×d.
+         ℓ          ℓ         ℓ' class='math-display' src='/paper-math/main14x.svg' /><a id='x1-19002r4'></a></div>
+   </td><td class='equation-label'>(4)</td></tr></table>
+<!-- l. 211 --><p class='nopar'>
+</p><!-- l. 213 --><p class='indent'>   Latent mixing replaces each independent source–output decoder vector with a learned scalar and an
+output-layer-specific base direction:
+</p>
+   <table class='equation'><tr><td>
+                                                                                         
+                                                                                         
+   <div class='math-display'>
+<img alt='wsa→ℓ = γsa→ℓwdeℓc,a,' class='math-display' src='/paper-math/main15x.svg' /><a id='x1-19003r5'></a></div>
+   </td><td class='equation-label'>(5)</td></tr></table>
+<!-- l. 220 --><p class='nopar'>Here <span class='rm-lmbx-10x-x-109'>w</span><sub><span class='lmmi-8'>ℓ,a</span></sub><sup><span class='rm-lmr-8'>dec</span></sup> is row <span class='lmmi-10x-x-109'>a </span>of the output-layer base decoder <span class='rm-lmbx-10x-x-109'>W</span><span class='rm-lmr-8'>dec</span><sub><span class='lmmi-8'>ℓ</span></sub> and is shared across source layers, while
+<span class='lmmi-10x-x-109'>γ</span><sub><span class='lmmi-8'>a</span></sub><sup><span class='lmmi-8'>s</span><span class='lmsy8-'>→</span><span class='lmmi-8'>ℓ</span></sup> controls the contribution of feature <span class='lmmi-10x-x-109'>a </span>from source layer <span class='lmmi-10x-x-109'>s </span>to output layer <span class='lmmi-10x-x-109'>ℓ</span>. Because these
+coefficients are feature-specific, different features can retain different cross-layer contribution
+profiles.
+</p>
+   <div class='table'>
+                                                                                         
+                                                                                         
+<!-- l. 223 --><p class='indent'>   </p>
+   </div>
+<!-- l. 248 --><p class='indent'>   Table <a href='#comparison-of-decoder-parameterizations-counts-use-l34-d2560-and-m100000-and-exclude-biases'>1<!-- tex4ht:ref: tab:direct-vs-latent-mixing  --></a> summarizes the trade-off: latent mixing preserves cross-layer contributions while reducing the
+decoder parameter count by a factor of <span class='rm-lmr-10x-x-109'>17</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>4</span>, but constrains contributions from different source
+layers to a given output feature to share the same decoder direction and differ only in scalar
+strength.
+   
+</p>
+   <h4 class='subsectionHead' id='training-pipeline'><span class='titlemark'>3.4   </span>   <a id='x1-200003.4'></a>Training Pipeline</h4>
+   
+<!-- l. 253 --><p class='noindent'><span class='paragraphHead' id='training-objective'> <a id='x1-21000'></a><span class='ec-lmbx-10x-x-109'>Training objective.</span></span>
+   Training the CLT is a pure regression problem: at every token position and every layer,
+reproduce the frozen transformer’s MLP output from its MLP input. Each training step samples <span class='lmmi-10x-x-109'>B</span>
+token instances and minimizes the per-coordinate mean-squared reconstruction error over all <span class='lmmi-10x-x-109'>L</span>
+layers,
+</p>
+   <table class='equation'><tr><td>
+   <div class='math-display'>
+<img alt='       1  ∑B  ∑L ∥          ∥2
+L =  -----       ∥^m ℓ,t − m ℓ,t∥2.
+     B L dt=1 ℓ=1' class='math-display' src='/paper-math/main18x.svg' /><a id='x1-21001r6'></a></div>
+   </td><td class='equation-label'>(6)</td></tr></table>
+<!-- l. 262 --><p class='nopar'>
+</p><!-- l. 264 --><p class='indent'>   We exclude chat-template tokens and padding from the loss because their repetition makes them
+trivially reconstructable and heavily over-represented, causing the MSE to reward template scaffolding
+rather than content computation. These tokens still pass through the model normally and are masked only
+when computing the loss.
+   
+</p>
+<!-- l. 266 --><p class='noindent'><span class='paragraphHead' id='training-data'> <a id='x1-22000'></a><span class='ec-lmbx-10x-x-109'>Training data.</span></span>
+   Because our interventions target chat-formatted mathematical reasoning rather than raw pretraining
+text [<a href='#Xameisen2025circuit'>1</a>, <a href='#Xdunefsky2024transcoders'>7</a>], we train the CLT on chat-formatted QA data. Prompts are drawn from StackExchange
+questions parsed from the uncopyrighted Pile [<a href='#Xpile'>10</a>], and the frozen Gemma-3-4B-IT writes each answer in
+its own chat format [<a href='#Xgemma3'>11</a>]. The resulting corpus contains <span class='rm-lmr-10x-x-109'>6</span><span class='lmmi-10x-x-109'>,</span><span class='rm-lmr-10x-x-109'>398</span><span class='lmmi-10x-x-109'>,</span><span class='rm-lmr-10x-x-109'>447 </span>question–answer pairs and roughly <span class='rm-lmr-10x-x-109'>5</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>5</span>
+billion content tokens. A StackExchange-derived example pair, rendered in the same format the frozen
+Gemma-3-4B-IT consumes:
+                                                                                         
+                                                                                         
+     </p><blockquote class='quote'>
+     <!-- l. 269 --><p class='noindent'><span class='ec-lmtk-10x-x-90'>&lt;bos&gt;&lt;start_of_turn&gt;user</span><br />
+     <span class='ec-lmtt-9'>Using
+     the
+     M-test,
+     how
+     can
+     I
+     justify
+     differentiating
+     the
+     series
+     </span><span class='lmex-10'>∑</span><sub>
+<span class='lmmi-6'>n</span><span class='rm-lmr-6'>=1</span></sub><sup><span class='lmsy6-'>∞</span></sup><span class='lmmi-9'>λ</span><sup><span class='lmmi-6'>n</span></sup><span class='lmmi-9'>∕n</span><span class='rm-lmr-9'>!
+     </span><span class='ec-lmtt-9'>term
+     by
+     term?</span><span class='ec-lmtk-10x-x-90'>&lt;end_of_turn&gt;</span><br />
+     <span class='ec-lmtk-10x-x-90'>&lt;start_of_turn&gt;model</span><br />
+     <span class='ec-lmtt-9'>Fix
+     a
+     bounded
+     interval
+     </span><span class='rm-lmr-9'>0 </span><span class='lmsy9-'>≤</span><span class='lmmi-9'>λ </span><span class='lmsy9-'>≤</span><span class='lmmi-9'>R</span><span class='ec-lmtt-9'>.
+     Then
+     each
+     derivative
+     term
+     is
+     bounded
+     by
+     </span><span class='lmmi-9'>nR</span><sup><span class='lmmi-6'>n</span><span class='lmsy6-'>−</span><span class='rm-lmr-6'>1</span></sup><span class='lmmi-9'>∕n</span><span class='rm-lmr-9'>! = </span><span class='lmmi-9'>R</span><sup><span class='lmmi-6'>n</span><span class='lmsy6-'>−</span><span class='rm-lmr-6'>1</span></sup><span class='lmmi-9'>∕</span><span class='rm-lmr-9'>(</span><span class='lmmi-9'>n </span><span class='lmsy9-'>−</span><span class='rm-lmr-9'>1)!</span><span class='ec-lmtt-9'>,
+     and
+     the
+     resulting
+     majorant
+     series
+     converges
+     </span><span class='ec-lmr-9'>…</span><span class='ec-lmtk-10x-x-90'>&lt;end_of_turn&gt;</span></p></blockquote>
+<!-- l. 274 --><p class='noindent'>The chat-template tokens (<span class='ec-lmtt-10x-x-109'>&lt;start_of_turn&gt;</span>, <span class='ec-lmtt-10x-x-109'>&lt;end_of_turn&gt;</span>, and the role labels <span class='ec-lmtt-10x-x-109'>user </span>and <span class='ec-lmtt-10x-x-109'>model</span>) are
+excluded from the reconstruction loss.
+</p>
+   
+   
+<!-- l. 286 --><p class='noindent'><span class='paragraphHead' id='implementation'> <a id='x1-23000'></a><span class='ec-lmbx-10x-x-109'>Implementation.</span></span>
+   Training pairs are extracted with forward hooks on the frozen Gemma-3-4B-IT’s MLPs: each
+unmasked token contributes the residual input <span class='rm-lmbx-10x-x-109'>x</span><sub><span class='lmmi-8'>ℓ,t</span></sub> and MLP output <span class='rm-lmbx-10x-x-109'>m</span><sub><span class='lmmi-8'>ℓ,t</span></sub> across all layers [<a href='#Xcurrent_training_pipeline'>24</a>, <a href='#Xtraining_pipeline'>26</a>].
+Feature activations are sparsified by a JumpReLU with threshold <span class='lmmi-10x-x-109'>𝜃 </span><span class='rm-lmr-10x-x-109'>= 0</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>025</span>, followed by a global top-<span class='lmmi-10x-x-109'>k</span>
+gate that keeps the <span class='lmmi-10x-x-109'>k </span><span class='rm-lmr-10x-x-109'>= 500 </span>largest features per token and layer across the tensor-parallel shards. We
+train the analyzed <span class='rm-lmr-10x-x-109'>100</span><span class='lmmi-10x-x-109'>,</span><span class='rm-lmr-10x-x-109'>800</span>-feature latent-mixing CLT with AdamW (constant learning rate
+<span class='rm-lmr-10x-x-109'>10</span><sup><span class='lmsy8-'>−</span><span class='rm-lmr-8'>4</span></sup>, weight decay <span class='rm-lmr-10x-x-109'>10</span><sup><span class='lmsy8-'>−</span><span class='rm-lmr-8'>2</span></sup>, PyTorch-default betas, seed <span class='rm-lmr-10x-x-109'>42</span>) at <span class='lmmi-10x-x-109'>B </span><span class='rm-lmr-10x-x-109'>= 64 </span>tokens per step, on <span class='rm-lmr-10x-x-109'>8</span>
+NVIDIA A100 80 GB GPUs with one rank generating these activations and seven training
+(<span class='rm-lmr-10x-x-109'>1</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>96 </span>steps per second). The reconstruction loss falls from <span class='rm-lmr-10x-x-109'>0</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>911 </span>at initialization to <span class='rm-lmr-10x-x-109'>0</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>0064</span>
+by step <span class='rm-lmr-10x-x-109'>50</span><span class='lmmi-10x-x-109'>,</span><span class='rm-lmr-10x-x-109'>000 </span>(Figure <a href='#training-trajectory-of-the-analyzed-clt'>2<!-- tex4ht:ref: fig:training-loss  --></a>); with the loss converged, we stop training there, after about <span class='rm-lmr-10x-x-109'>7</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>1</span>
+hours.
+   
+</p>
+   <h4 class='subsectionHead' id='why-the-training-is-effective'><span class='titlemark'>3.5   </span>   <a id='x1-240003.5'></a>Why the Training Is Effective</h4>
+<!-- l. 293 --><p class='noindent'>A CLT is only useful as a hypothesis generator if it is a <span class='ec-lmri-10x-x-109'>faithful </span>and <span class='ec-lmri-10x-x-109'>interpretable </span>surrogate for the MLP
+computation it replaces. We assess this along three intrinsic axes: reconstruction fidelity, sparsity, and
+feature interpretability.
+   
+</p>
+<!-- l. 295 --><p class='noindent'><span class='paragraphHead' id='reconstruction-generalizes-across-evaluation-distributions'> <a id='x1-25000'></a><span class='ec-lmbx-10x-x-109'>Reconstruction generalizes across evaluation distributions.</span></span>
+   We evaluate the trained CLT on held-out StackExchange, AIME 2024–2025, NaturalReasoning,
+Medical-o1, and WikiQA. Across these five distributions, reconstruction MSE ranges from <span class='rm-lmr-10x-x-109'>0</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>0059 </span>to
+<span class='rm-lmr-10x-x-109'>0</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>0083</span>, and pooled relative <span class='lmmi-10x-x-109'>L</span><sub><span class='rm-lmr-8'>2</span></sub> error from <span class='rm-lmr-10x-x-109'>0</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>29 </span>to <span class='rm-lmr-10x-x-109'>0</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>36 </span>(Table <a href='#clt-reconstruction-on-evaluation-distributions'>2<!-- tex4ht:ref: tab:recon-transfer  --></a>). The consistency of these errors indicates
+that reconstruction transfers beyond StackExchange-style training data. Reconstruction quality varies
+with depth: the relative <span class='lmmi-10x-x-109'>L</span><sub><span class='rm-lmr-8'>2</span></sub> error <span class='lmsy-10x-x-109'>∥</span><span class='lmmi-10x-x-109'>h</span><sub><span class='lmmi-8'>ℓ</span></sub> <span class='lmsy-10x-x-109'>−</span><span class='lmmi-10x-x-109'>ĥ</span><sub><span class='lmmi-8'>ℓ</span></sub><span class='lmsy-10x-x-109'>∥</span><sub><span class='rm-lmr-8'>2</span></sub><span class='lmmi-10x-x-109'>∕</span><span class='lmsy-10x-x-109'>∥</span><span class='lmmi-10x-x-109'>h</span><sub><span class='lmmi-8'>ℓ</span></sub><span class='lmsy-10x-x-109'>∥</span><sub><span class='rm-lmr-8'>2</span></sub> is inverted-U-shaped across layers, rising from
+<span class='rm-lmr-10x-x-109'>0</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>15 </span>at layer <span class='rm-lmr-10x-x-109'>0 </span>to <span class='rm-lmr-10x-x-109'>0</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>67 </span>at layer <span class='rm-lmr-10x-x-109'>13 </span>before falling to <span class='rm-lmr-10x-x-109'>0</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>28 </span>at layer <span class='rm-lmr-10x-x-109'>33 </span>(Figure <a href='#left-relative-l2-reconstruction-error-h-h-2h-2-by-layer-right-the-activation-norm-h-2-log-scale-whose-trough-coincides-with-the-error-peak'>3<!-- tex4ht:ref: fig:l2-by-layer  --></a>). This peak
+coincides with a trough in the activation norm itself, so the middle layers are the thinnest rather
+than the worst reconstructed in absolute terms. The same profile appears across datasets,
+indicating a consistent weakness of the surrogate at middle layers rather than dataset-specific
+degradation.
+</p>
+   <div class='table'>
+                                                                                         
+                                                                                         
+<!-- l. 298 --><p class='indent'>   </p>
+   </div>
+   
+   
+<!-- l. 322 --><p class='noindent'><span class='paragraphHead' id='activations-are-sparse'> <a id='x1-26000'></a><span class='ec-lmbx-10x-x-109'>Activations are sparse.</span></span>
+   On the held-out set, a token activates only <span class='rm-lmr-10x-x-109'>58</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>6 </span>of the <span class='rm-lmr-10x-x-109'>100</span><span class='lmmi-10x-x-109'>,</span><span class='rm-lmr-10x-x-109'>800 </span>features per layer on average, a density
+of <span class='rm-lmr-10x-x-109'>0</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>06% </span>(Figure <a href='#active-features-per-token-the-mean-hard-0-by-layer-on-the-heldout-set'>4<!-- tex4ht:ref: fig:l0-by-layer  --></a>). Most layers are even sparser: the median layer activates <span class='rm-lmr-10x-x-109'>10</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>4 </span>features, and <span class='rm-lmr-10x-x-109'>24 </span>of the
+<span class='rm-lmr-10x-x-109'>34 </span>layers stay below <span class='rm-lmr-10x-x-109'>20 </span>active features per token. The mean is pulled upward by the deepest layers, where
+the count rises toward the top-<span class='lmmi-10x-x-109'>k </span>cap of <span class='rm-lmr-10x-x-109'>500</span>. Thus each MLP output is reconstructed from a small,
+enumerable set of active features rather than a dense mixture of the full dictionary, making downstream
+attribution graphs tractable.
+</p>
+   
+<!-- l. 332 --><p class='indent'>   Taken together, our reconstruction error and activation sparsity are comparable to those reported for
+Anthropic’s production-scale CLTs [<a href='#Xameisen2025circuit'>1</a>].
+   
+</p>
+<!-- l. 334 --><p class='noindent'><span class='paragraphHead' id='features-are-interpretable'> <a id='x1-27000'></a><span class='ec-lmbx-10x-x-109'>Features are interpretable.</span></span>
+   Faithful, sparse reconstruction supports circuit analysis only if the individual feature directions are
+themselves interpretable. We run the CLT over a random sample of <span class='rm-lmr-10x-x-109'>20</span><span class='lmmi-10x-x-109'>,</span><span class='rm-lmr-10x-x-109'>000 </span>OpenWebMath [<a href='#Xopenwebmath'>19</a>] passages
+and, for every one of the <span class='rm-lmr-10x-x-109'>34 </span><span class='lmsy-10x-x-109'>×</span><span class='rm-lmr-10x-x-109'>100</span><span class='lmmi-10x-x-109'>,</span><span class='rm-lmr-10x-x-109'>800 </span><span class='lmsy-10x-x-109'>≈</span><span class='rm-lmr-10x-x-109'>3</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>4</span>M features, record its firing rate together with the ten
+passages that most strongly activate it and the token position of each peak. Selection then follows from
+statistics, not manual taste: we discard the first-token artifact, retain those with a non-trivial peak
+(maximum activation at least <span class='rm-lmr-10x-x-109'>4 </span>in our normalized activation units), and label each retained feature by
+automated interpretability [<a href='#Xbills2023'>4</a>], prompting a language model to describe what its maximally-activating
+examples share.
+</p><!-- l. 337 --><p class='indent'>   Table <a href='#automatedinterpretability-evidence-that-clt-features-are-monosemantic-features-are-denoted-l-fa-where-is-the-layer-and-a-the-feature-index-token-backgrounds-are-shaded-in-proportion-to-activation-strength-with-darker-colors-indicating-larger-activations'>3<!-- tex4ht:ref: tab:top-activating  --></a> reports six retained features chosen to span the dictionary’s depth (layers <span class='rm-lmr-10x-x-109'>0 </span>through <span class='rm-lmr-10x-x-109'>31</span>) and
+the kinds of structure it learns: early-layer lexical concepts, mid-layer formatting and reasoning features,
+and deep-layer <span class='ec-lmri-10x-x-109'>register </span>features. Across the three top passages shown for each feature, the automated
+labels remain coherent.
+</p>
+   <div class='table'>
+                                                                                         
+                                                                                         
+<!-- l. 339 --><p class='indent'>   </p>
+   </div>
+   
+   <h3 class='sectionHead' id='attribution-as-candidate-discovery'><span class='titlemark'>4   </span>   <a id='x1-280004'></a>Attribution as Candidate Discovery</h3>
+<!-- l. 381 --><p class='noindent'>To make the goal of this section concrete, consider the prompt
+     </p><blockquote class='quote'>
+     <!-- l. 383 --><p class='noindent'><span class='ec-lmri-10x-x-109'>“… it is easy to show that </span><span class='lmmi-10x-x-109'>m </span><span class='ec-lmri-10x-x-109'>forms a basis</span><span class='ec-lmbxi-10x-x-109'>.</span><span class='ec-lmri-10x-x-109'>”</span></p></blockquote>
+<!-- l. 385 --><p class='noindent'>which Gemma-3-4B-IT continues with the token   <span class='ec-lmtt-10x-x-109'>However</span>. In this case the model could have stopped,
+started a new line, or kept explaining in some other way; instead it produced a discourse connective that
+carries the argument across the sentence boundary. To find the feature-level circuit behind that choice, we
+build an <span class='ec-lmri-10x-x-109'>attribution graph </span>toward the   <span class='ec-lmtt-10x-x-109'>However </span>logit.
+</p><!-- l. 388 --><p class='noindent'><span class='colorbox' id='colorbox124'><span class='ec-lmbx-10x-x-109'>High-level workflow. </span>Given a prompt and target logit, we first construct a prompt-specific graph
+of direct influences among input tokens, CLT features, and the output. A truncated Neumann
+series then aggregates paths through intermediate features into total influence scores. These scores
+determine which feature nodes are displayed, while the direct-effect edges among the displayed
+nodes form the compact attribution graph.                                                  </span>
+   
+</p>
+   <h4 class='subsectionHead' id='direct-effect-computation'><span class='titlemark'>4.1   </span>   <a id='x1-290004.1'></a>Direct Effect Computation</h4>
+<!-- l. 398 --><p class='noindent'>The first step toward the attribution graph is computing its edges: the <span class='ec-lmri-10x-x-109'>direct effect </span>of one node on
+another, i.e. how strongly a source node (a feature or an input token) pushes on a target node’s readout
+(a downstream feature’s pre-activation, or an output logit) in a single step, before any routing through
+intermediate features.
+</p><!-- l. 400 --><p class='indent'>   We compute these direct effects in a locally linearized <span class='ec-lmri-10x-x-109'>replacement model</span>: every MLP sublayer is
+replaced by the trained CLT, while the remaining nonlinearities (attention probabilities, RMSNorm scale
+factors, and the JumpReLU/TopK active-feature masks) are frozen at their forward-pass values and
+gradients are not allowed to propagate through them. We write <span class='lmmi-10x-x-109'>g</span><sub><span class='lmmi-8'>i</span><span class='lmsy8-'>→</span><span class='lmmi-8'>j</span></sub> for the direct effect from source node
+<span class='lmmi-10x-x-109'>i </span>to target node <span class='lmmi-10x-x-109'>j</span>, computed as the corresponding gradient in this frozen model. The gradient is also
+blocked from passing through any other CLT feature’s encode–decode chain, so influence routed through a
+third feature is excluded. This procedure yields a direct-effect value for each admissible source–target
+pair.
+</p><!-- l. 402 --><p class='indent'>   Concretely, let <span class='rm-lmbx-10x-x-109'>J</span><sub><span class='lmmi-8'>i</span><span class='lmsy8-'>→</span><span class='lmmi-8'>j</span></sub> denote the transformer Jacobian that propagates a residual-stream perturbation
+from the source location to the target location. For a feature-to-feature edge, the implementation
+composes the activation-weighted source decoder write, this Jacobian, and the target encoder
+read:
+</p>
+   <table class='equation'><tr><td>
+                                                                                         
+                                                                                         
+   <div class='math-display'>
+<img alt='               (      )
+gi→j = wenjc Ji→j ziwdeic .' class='math-display' src='/paper-math/main19x.svg' /><a id='x1-29001r7'></a></div>
+   </td><td class='equation-label'>(7)</td></tr></table>
+<!-- l. 410 --><p class='nopar'>Read from right to left, the decoder writes source feature <span class='lmmi-10x-x-109'>i </span>into the residual stream, the Jacobian carries
+that write forward, and the encoder reads out target feature <span class='lmmi-10x-x-109'>j </span>(Figure <a href='#directeffect-computation-a-source-features-decoder-direction-is-propagated-through-the-transformer-jacobian-and-projected-onto-the-target-features-encoder-direction-repeating-this-computation-over-source-nodes-fills-one-target-row-of-the-attribution-matrix'>5<!-- tex4ht:ref: fig:direct-effect  --></a>). Token and logit endpoints
+replace the decoder or encoder with the corresponding embedding or unembedding direction. Appendix <a href='#directeffect-computation-details'>B<!-- tex4ht:ref: app:direct-effect-impl  --></a>
+gives the cross-layer sums and full implementation details.
+</p>
+   
+<!-- l. 420 --><p class='indent'>   Collecting these pairwise direct effects gives a prompt-specific adjacency matrix <span class='rm-lmbx-10x-x-109'>G</span>. We enumerate the
+graph nodes for the prompt and arrange their pairwise direct effects in a target-by-source matrix, with
+<span class='rm-lmr-10x-x-109'>(</span><span class='rm-lmbx-10x-x-109'>G</span><span class='rm-lmr-10x-x-109'>)</span><sub><span class='lmmi-8'>j,i</span></sub> <span class='rm-lmr-10x-x-109'>= </span><span class='lmmi-10x-x-109'>g</span><sub><span class='lmmi-8'>i</span><span class='lmsy8-'>→</span><span class='lmmi-8'>j</span></sub>. Target rows are ordered as <span class='rm-lmr-10x-x-109'>[</span> feature<span class='rm-lmr-10x-x-109'>;</span>logit<span class='rm-lmr-10x-x-109'>] </span>and source columns as <span class='rm-lmr-10x-x-109'>[</span> token<span class='rm-lmr-10x-x-109'>;</span>feature<span class='rm-lmr-10x-x-109'>]</span>, so the
+graph adjacency has four main blocks: feature targets reading from token and feature sources, and logit
+targets reading from token and feature sources. With each block written target-by-source,
+<span class='rm-lmr-10x-x-109'>(</span><span class='rm-lmbx-10x-x-109'>G</span><sub><span class='lmmi-8'>X</span><span class='lmsy8-'>←</span><span class='lmmi-8'>Y</span> </sub><span class='rm-lmr-10x-x-109'>)</span><sub><span class='lmmi-8'>x,y</span></sub> <span class='rm-lmr-10x-x-109'>= </span><span class='lmmi-10x-x-109'>g</span><sub><span class='lmmi-8'>y</span><span class='lmsy8-'>→</span><span class='lmmi-8'>x</span></sub>, the adjacency matrix is
+</p>
+   <table class='equation'><tr><td>
+   <div class='math-display'>
+<img alt='    (G        G     )
+G =     F←T     F←F    ← feature rows
+      GL ←T   GL ←F    ← logit rows.' class='math-display' src='/paper-math/main20x.svg' /><a id='x1-29003r8'></a></div>
+   </td><td class='equation-label'>(8)</td></tr></table>
+<!-- l. 432 --><p class='nopar'>
+   
+</p>
+   <h4 class='subsectionHead' id='neumann-multihop-propagation'><span class='titlemark'>4.2   </span>   <a id='x1-300004.2'></a>Neumann Multi-Hop Propagation</h4>
+<!-- l. 437 --><p class='noindent'>The direct-effect matrix <span class='rm-lmbx-10x-x-109'>G </span>records pairwise, single-step influence. We use Neumann-series propagation to
+aggregate these edges over paths of different lengths. To compose multi-hop paths, we distinguish edges by
+their target type: edges into logits terminate propagation, whereas edges into features can be followed by
+additional edges. We define
+</p>
+   <table class='equation'><tr><td>
+   <div class='math-display'>
+<img alt='                                      (                )
+    (             )    n ×n             0nT×nT   0nT×nF      n ×n
+A =  GL ←T  GL ←F   ∈ ℝ L   tf,    B =   G        G       ∈ ℝ  tf  tf.
+                                          F←T      F←F' class='math-display' src='/paper-math/main21x.svg' /><a id='x1-30001r9'></a></div>
+   </td><td class='equation-label'>(9)</td></tr></table>
+<!-- l. 447 --><p class='nopar'>where <span class='lmmi-10x-x-109'>n</span><sub><span class='lmmi-8'>F</span> </sub> <span class='rm-lmr-10x-x-109'>= </span><span class='lmmi-10x-x-109'>N</span><sub><span class='rm-lmr-8'>feat</span></sub>, <span class='lmmi-10x-x-109'>n</span><sub><span class='lmmi-8'>T</span> </sub> <span class='rm-lmr-10x-x-109'>= </span><span class='lmmi-10x-x-109'>N</span><sub><span class='rm-lmr-8'>token</span></sub>, <span class='lmmi-10x-x-109'>n</span><sub><span class='lmmi-8'>L</span></sub> <span class='rm-lmr-10x-x-109'>= </span><span class='lmmi-10x-x-109'>N</span><sub><span class='rm-lmr-8'>logit</span></sub>, and <span class='lmmi-10x-x-109'>n</span><sub><span class='rm-lmr-8'>tf</span></sub> <span class='rm-lmr-10x-x-109'>= </span><span class='lmmi-10x-x-109'>n</span><sub><span class='lmmi-8'>T</span> </sub> <span class='rm-lmr-10x-x-109'>+ </span><span class='lmmi-10x-x-109'>n</span><sub><span class='lmmi-8'>F</span> </sub>. The matrix <span class='lmmi-10x-x-109'>A </span>contains direct effects from
+token and feature sources to logit targets, while <span class='lmmi-10x-x-109'>B </span>contains direct effects from the same sources to feature
+targets; its zero token rows encode that input tokens can begin a path but cannot be reached from
+                                                                                         
+                                                                                         
+another node.
+</p><!-- l. 450 --><p class='indent'>   The path contributions are then generated by repeated multiplication: let <span class='lmmi-10x-x-109'>T</span><sub><span class='rm-lmr-8'>0</span></sub> <span class='rm-lmr-10x-x-109'>= </span><span class='lmmi-10x-x-109'>A </span>and
+<span class='lmmi-10x-x-109'>T</span><sub><span class='lmmi-8'>i</span></sub> <span class='rm-lmr-10x-x-109'>= </span><span class='lmmi-10x-x-109'>T</span><sub><span class='lmmi-8'>i</span><span class='lmsy8-'>−</span><span class='rm-lmr-8'>1</span></sub><span class='lmmi-10x-x-109'>B </span><span class='rm-lmr-10x-x-109'>= </span><span class='lmmi-10x-x-109'>AB</span><sup><span class='lmmi-8'>i</span></sup> for <span class='lmmi-10x-x-109'>i </span><span class='lmsy-10x-x-109'>≥</span><span class='rm-lmr-10x-x-109'>1</span>. Each multiplication by <span class='lmmi-10x-x-109'>B </span>extends a path by one more intermediate feature,
+so the entry <span class='rm-lmr-10x-x-109'>(</span><span class='lmmi-10x-x-109'>T</span><sub><span class='lmmi-8'>i</span></sub><span class='rm-lmr-10x-x-109'>)</span><sub><span class='lmmi-8'>ℓ,s</span></sub> collects every path that runs from source <span class='lmmi-10x-x-109'>s </span>to logit <span class='lmmi-10x-x-109'>ℓ </span>through exactly <span class='lmmi-10x-x-109'>i </span>intermediate
+features. In particular <span class='lmmi-10x-x-109'>T</span><sub><span class='rm-lmr-8'>0</span></sub> is the <span class='ec-lmri-10x-x-109'>direct </span>contribution of a source to the logit, and <span class='lmmi-10x-x-109'>T</span><sub><span class='lmmi-8'>i</span></sub> with <span class='lmmi-10x-x-109'>i </span><span class='lmsy-10x-x-109'>≥</span><span class='rm-lmr-10x-x-109'>1 </span>is its <span class='ec-lmri-10x-x-109'>indirect</span>
+contribution through <span class='lmmi-10x-x-109'>i </span>hops.
+</p><!-- l. 452 --><p class='indent'>   These hop terms shrink quickly in practice. Figure <a href='#geometric-decay-of-the-neumannseries-terms-each-point-is-the-total-magnitude-ti1-of-the-hopi-contribution-on-the-full-attribution-graph-of-the-however-prompt'>6<!-- tex4ht:ref: fig:neumann-decay  --></a> plots the total magnitude <span class='lmsy-10x-x-109'>∥</span><span class='lmmi-10x-x-109'>T</span><sub><span class='lmmi-8'>i</span></sub><span class='lmsy-10x-x-109'>∥</span><sub><span class='rm-lmr-8'>1</span></sub> of each hop,
+i.e. the sum of the absolute values of all entries of <span class='lmmi-10x-x-109'>T</span><sub><span class='lmmi-8'>i</span></sub>. After the first two hops the terms fall off
+geometrically, each about a quarter of the previous one, from <span class='lmsy-10x-x-109'>∥</span><span class='lmmi-10x-x-109'>T</span><sub><span class='rm-lmr-8'>0</span></sub><span class='lmsy-10x-x-109'>∥</span><sub><span class='rm-lmr-8'>1</span></sub> <span class='lmsy-10x-x-109'>≈</span><span class='rm-lmr-10x-x-109'>6</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>4 </span><span class='lmsy-10x-x-109'>×</span><span class='rm-lmr-10x-x-109'>10</span><sup><span class='rm-lmr-8'>3</span></sup> to <span class='lmsy-10x-x-109'>∥</span><span class='lmmi-10x-x-109'>T</span><sub><span class='rm-lmr-8'>10</span></sub><span class='lmsy-10x-x-109'>∥</span><sub><span class='rm-lmr-8'>1</span></sub> <span class='lmsy-10x-x-109'>≈</span><span class='rm-lmr-10x-x-109'>0</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>14</span>, so the
+multi-hop sum is dominated by the first few hops.
+</p>
+   
+<!-- l. 461 --><p class='indent'>   Because of this decay, truncating at a finite order <span class='lmmi-10x-x-109'>n </span>already captures essentially all of the
+multi-hop influence. Summing the contributions up to that order gives the <span class='ec-lmri-10x-x-109'>total </span>influence
+score
+</p>
+   <table class='equation'><tr><td>
+   <div class='math-display'>
+<img alt='     ∑n                   2           n
+Sn =    Ti = A + AB  + AB  + ⋅⋅⋅+ AB   .
+     i=0' class='math-display' src='/paper-math/main22x.svg' /><a id='x1-30003r10'></a></div>
+   </td><td class='equation-label'>(10)</td></tr></table>
+<!-- l. 465 --><p class='nopar'>All attribution scores in this paper are computed with <span class='lmmi-10x-x-109'>n </span><span class='rm-lmr-10x-x-109'>= 10</span>: the last term kept, <span class='lmmi-10x-x-109'>T</span><sub><span class='rm-lmr-8'>10</span></sub>, is already
+more than four orders of magnitude smaller than <span class='lmmi-10x-x-109'>T</span><sub><span class='rm-lmr-8'>0</span></sub>, so the terms dropped beyond it are
+negligible.
+   
+</p>
+   <h4 class='subsectionHead' id='from-neumann-scores-to-attribution-graphs'><span class='titlemark'>4.3   </span>   <a id='x1-310004.3'></a>From Neumann Scores to Attribution Graphs</h4>
+<!-- l. 471 --><p class='noindent'>To make the scores easier to inspect, we visualize them as a compact attribution graph. For a fixed
+prompt and target continuation logit, equation (<a href='#x1-30003r10'>10<!-- tex4ht:ref: eq:neumann  --></a>) gives a total influence score from every
+token or feature source to that logit. We retain the <span class='rm-lmr-10x-x-109'>100 </span>CLT features with the largest positive
+Neumann scores toward the target logit and assemble them into a directed graph. The direct-effect
+matrix <span class='rm-lmbx-10x-x-109'>G </span>supplies the edges among these nodes, while the Neumann score determines how
+strongly each source is attributed to the target after accounting for paths through intermediate
+features.
+</p>
+   
+   
+   <h4 class='subsectionHead' id='a-worked-example-from-an-attribution-graph-to-a-partial-causal-trace'><span class='titlemark'>4.4   </span>   <a id='x1-320004.4'></a>A Worked Example: From an Attribution Graph to a Partial Causal Trace</h4>
+<!-- l. 498 --><p class='noindent'>To make the graph-to-explanation workflow in Section <a href='#from-neumann-scores-to-attribution-graphs'>4.3<!-- tex4ht:ref: sec:graph-visualization  --></a> concrete, we study the factual completion <span class='ec-lmtt-10x-x-109'>The
+capital of France is </span><span class='lmsy-10x-x-109'>→ </span><span class='ec-lmtt-10x-x-109'>Paris</span>. Graph attribution nominates influential features and links, controlled
+activation tests their provisional semantic roles, and intervention tests a candidate path through them.
+Our goal is to recover one supported circuit fragment, not an exhaustive or unique account of the
+computation.
+</p><!-- l. 500 -->
+<!-- l. 502 --><p class='noindent'><span class='paragraphHead' id='graphbased-candidate-selection-and-activation-specificity'> <a id='x1-33000'></a><span class='ec-lmbx-10x-x-109'>Graph-based candidate selection and activation specificity.</span></span>
+   From the prompt-specific attribution graph, we retain CLT features at the literal <span class='ec-lmtt-10x-x-109'>capital</span>, literal
+<span class='ec-lmtt-10x-x-109'>France</span>, and final <span class='ec-lmtt-10x-x-109'>is </span>positions whose aggregated Neumann attribution exceeds <span class='rm-lmr-10x-x-109'>0</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>01</span>, yielding <span class='rm-lmr-10x-x-109'>1</span><span class='lmmi-10x-x-109'>,</span><span class='rm-lmr-10x-x-109'>034</span>
+candidates. Controlled changes in wording, entities, and relations then test whether their
+activation patterns match a proposed role in the trace <span class='ec-lmtt-10x-x-109'>France</span>/<span class='ec-lmtt-10x-x-109'>capital </span><span class='lmsy-10x-x-109'>→ </span>answer state <span class='lmsy-10x-x-109'>→
+</span><span class='ec-lmtt-10x-x-109'>Paris</span>.
+</p><!-- l. 505 --><p class='indent'>   Figure <a href='#controlled-activation-evidence-for-the-two-input-features-retained-in-the-final-circuit-trace-each-bar-is-the-mean-across-sentences-of-the-maximum-feature-activation-observed-in-each-sentence-within-the-indicated-topic-error-bars-show-one-standard-deviation-across-sentences'>8<!-- tex4ht:ref: fig:literal-input-specificity  --></a> reports representative activation evidence for the two input features retained after graph
+attribution, activation screening, and ablation: <span class='ec-lmtt-10x-x-109'>L0:F26582 </span>at <span class='ec-lmtt-10x-x-109'>France </span>and <span class='ec-lmtt-10x-x-109'>L0:F81670 </span>at <span class='ec-lmtt-10x-x-109'>capital</span>.
+Appendix <a href='#franceparis-screening-and-causalaudit-protocol'>A<!-- tex4ht:ref: app:semantic-screen-protocol  --></a> gives the complete prompt suite and selection procedure.
+</p>
+   
+<!-- l. 523 --><p class='indent'>   <span class='ec-lmri-10x-x-109'>France token. </span>The screen identifies three layer-<span class='rm-lmr-10x-x-109'>0 </span>candidates. Among them, targeted ablations identify
+<span class='ec-lmtt-10x-x-109'>L0:F26582 </span>as the clearest individual contributor to the <span class='ec-lmtt-10x-x-109'>Paris </span>output, while joint ablation indicates
+distributed input support. Across <span class='rm-lmr-10x-x-109'>24 </span>France sentences, <span class='rm-lmr-10x-x-109'>24 </span>other-country controls, and <span class='rm-lmr-10x-x-109'>120 </span>unrelated
+sentences, <span class='ec-lmtt-10x-x-109'>France </span>is its maximally activating token in <span class='rm-lmr-10x-x-109'>23</span><span class='lmmi-10x-x-109'>∕</span><span class='rm-lmr-10x-x-109'>24 </span>France contexts, and sentence
+maxima separate from unrelated text with AUC <span class='rm-lmr-10x-x-109'>0</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>972 </span>(Figure <a href='#controlled-activation-evidence-for-the-two-input-features-retained-in-the-final-circuit-trace-each-bar-is-the-mean-across-sentences-of-the-maximum-feature-activation-observed-in-each-sentence-within-the-indicated-topic-error-bars-show-one-standard-deviation-across-sentences'>8<!-- tex4ht:ref: fig:literal-input-specificity  --></a>(a)). Its weaker responses to
+unrelated text motivate the narrower description <span class='ec-lmri-10x-x-109'>literal-France feature</span>, rather than France-only
+detector.
+</p><!-- l. 526 --><p class='indent'>   <span class='ec-lmri-10x-x-109'>Capital token. </span>Among six high-attribution candidates tested against seven relation controls,
+<span class='ec-lmtt-10x-x-109'>L0:F81670 </span>ranks second and third by direct and multi-hop <span class='ec-lmtt-10x-x-109'>Paris </span>attribution among <span class='rm-lmr-10x-x-109'>155 </span>features, and its
+ablation lowers <span class='lmmi-10x-x-109'>P</span><span class='rm-lmr-10x-x-109'>(</span><span class='ec-lmtt-10x-x-109'>Paris</span><span class='rm-lmr-10x-x-109'>) </span>by <span class='rm-lmr-10x-x-109'>0</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>0446</span>. Across <span class='rm-lmr-10x-x-109'>24 </span>capital-reference, <span class='rm-lmr-10x-x-109'>28 </span>alternative-relation, and <span class='rm-lmr-10x-x-109'>120 </span>unrelated
+sentences, it peaks at <span class='ec-lmtt-10x-x-109'>capital </span>in every capital context (Figure <a href='#controlled-activation-evidence-for-the-two-input-features-retained-in-the-final-circuit-trace-each-bar-is-the-mean-across-sentences-of-the-maximum-feature-activation-observed-in-each-sentence-within-the-indicated-topic-error-bars-show-one-standard-deviation-across-sentences'>8<!-- tex4ht:ref: fig:literal-input-specificity  --></a>(b)), although some unrelated words
+activate it more strongly. <span class='ec-lmtt-10x-x-109'>L0:F20862 </span>is more activation-selective but does not support the <span class='ec-lmtt-10x-x-109'>Paris </span>logit, so
+we retain <span class='ec-lmtt-10x-x-109'>L0:F81670 </span>as the literal-capital input feature.
+   
+</p>
+<!-- l. 530 --><p class='noindent'><span class='paragraphHead' id='partial-shared-mediator'> <a id='x1-34000'></a><span class='ec-lmbx-10x-x-109'>Partial shared mediator.</span></span>
+   We next search for a shared downstream feature that receives positive graph edges from both retained
+inputs, responds to their ablation, and positively supports <span class='ec-lmtt-10x-x-109'>Paris</span>. The strongest candidate is <span class='ec-lmtt-10x-x-109'>L33:F66785</span>
+at the final <span class='ec-lmtt-10x-x-109'>is </span>position (Figure <a href='#graphsupported-candidate-trace-and-local-edgestrength-context-for-the-paris-output'>9<!-- tex4ht:ref: fig:france-capital-mediator-trace  --></a>).
+</p>
+   
+<!-- l. 567 --><p class='indent'>   Figure <a href='#graphsupported-candidate-trace-and-local-edgestrength-context-for-the-paris-output'>9<!-- tex4ht:ref: fig:france-capital-mediator-trace  --></a>(b) shows that the proposed edges are strong relative to their local backgrounds. The France
+and capital edges rank at the <span class='rm-lmr-10x-x-109'>97</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>46</span>th and <span class='rm-lmr-10x-x-109'>94</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>03</span>rd percentiles among their sources’ positive
+outgoing edges, and at the <span class='rm-lmr-10x-x-109'>98</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>29</span>th and <span class='rm-lmr-10x-x-109'>99</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>43</span>rd percentiles among positive edges entering the
+mediator.
+</p><!-- l. 569 --><p class='indent'>   Intervention supports <span class='ec-lmtt-10x-x-109'>L33:F66785 </span>as a causally relevant shared downstream feature: ablating either
+input reduces its activation, while ablating the mediator changes the <span class='ec-lmtt-10x-x-109'>Paris </span>logit by <span class='lmsy-10x-x-109'>−</span><span class='rm-lmr-10x-x-109'>0</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>0607</span>. This
+evidence supports the candidate partial trace <span class='ec-lmtt-10x-x-109'>L0:F26582</span>/<span class='ec-lmtt-10x-x-109'>L0:F81670 </span><span class='lmsy-10x-x-109'>→ </span><span class='ec-lmtt-10x-x-109'>L33:F66785 </span><span class='lmsy-10x-x-109'>→ </span><span class='ec-lmtt-10x-x-109'>Paris</span>, but not
+a dominant mediated pathway. Appendix <a href='#intervention-bounds-on-the-candidate-shared-mediator'>A.4<!-- tex4ht:ref: app:shared-mediator-audit  --></a> reports the path-share and targeted-rescue
+bounds.
+   
+</p>
+   <h3 class='sectionHead' id='selecting-and-validating-the-target-feature'><span class='titlemark'>5   </span>   <a id='x1-350005'></a>Selecting and Validating the Target Feature</h3>
+<!-- l. 576 --><p class='noindent'>This section looks for the CLT feature that actually drives the behavior introduced at the start of
+Section <a href='#attribution-as-candidate-discovery'>4<!-- tex4ht:ref: sec:attribution  --></a>: after a sentence-ending period in mathematical reasoning, the model continues with a logical
+connective instead of stopping or starting a new line.
+   
+</p>
+<!-- l. 578 --><p class='noindent'><span class='paragraphHead' id='feature-discovery'> <a id='x1-36000'></a><span class='ec-lmbx-10x-x-109'>Feature Discovery.</span></span>
+<a id='x1-36000doc'></a>
+   Feature discovery runs Neumann propagation on six sentences drawn from AIME reasoning traces.
+Each sentence ends where Gemma-3-4B-IT assigns substantial probability to a logical-connective
+continuation (  <span class='ec-lmtt-10x-x-109'>However</span>,   <span class='ec-lmtt-10x-x-109'>Since</span>, and   <span class='ec-lmtt-10x-x-109'>So</span>). For each sentence we rank features by Neumann score toward
+its continuation logit and keep the top <span class='rm-lmr-10x-x-109'>100</span>.
+</p><!-- l. 583 --><p class='indent'>   We compare the top-<span class='rm-lmr-10x-x-109'>100 </span>lists across all six sentences, identifying each feature by its (layer, feature)
+pair and dropping token position. This yields five recurrent candidate features. Each appears in the top
+<span class='rm-lmr-10x-x-109'>100 </span>for at least five of the six sentences.
+</p><!-- l. 585 --><p class='indent'>   Recurrence serves as an initial consistency criterion, but selection for detailed study additionally
+requires semantic interpretability. Each candidate has an automated-interpretability label from
+Section <a href='#why-the-training-is-effective'>3.5<!-- tex4ht:ref: sec:training-quality  --></a>, computed on training-corpus top activations and independent of the six sentences.
+Table <a href='#recurrent-feature-candidates-and-their-automatedinterpretability-evidence-recurrence-is-the-number-of-discovery-sentences-for-which-the-feature-appears-in-the-neumann-top100-list-colored-act-badges-encode-each-passages-peak-activation'>4<!-- tex4ht:ref: tab:discovery-candidates  --></a> reports these labels together with representative maximally activating OpenWebMath
+examples.
+</p>
+   <div class='table'>
+                                                                                         
+                                                                                         
+<!-- l. 587 --><p class='indent'>   </p>
+   </div>
+   
+<!-- l. 625 --><p class='noindent'><span class='paragraphHead' id='linearized-fixedprompt-interventions'> <a id='x1-37000'></a><span class='ec-lmbx-10x-x-109'>Linearized Fixed-Prompt Interventions.</span></span>
+<a id='x1-37000doc'></a>
+   Then we test the candidate features with a scale-factor edit under a linearized fixed-prompt protocol,
+where we directly change one CLT feature activation at one token position and measure the resulting
+change in the next-token distribution.
+</p><!-- l. 630 --><p class='indent'>   For a feature activation <span class='rm-lmbx-10x-x-109'>z</span><sub><span class='lmmi-8'>ℓ,t,a</span></sub> at layer <span class='lmmi-10x-x-109'>ℓ</span>, token position <span class='lmmi-10x-x-109'>t</span>, and feature index <span class='lmmi-10x-x-109'>a</span>, the scale-factor
+intervention multiplies the activation by a constant:
+</p>
+   <table class='equation'><tr><td>
+   <div class='math-display'>
+<img alt='z′   = sf ⋅zℓ,t,a,   Δℓ,t,a = (sf − 1)zℓ,t,a.
+ ℓ,t,a' class='math-display' src='/paper-math/main26x.svg' /><a id='x1-37001r11'></a></div>
+   </td><td class='equation-label'>(11)</td></tr></table>
+<!-- l. 636 --><p class='nopar'>The baseline is <span class='rm-lmr-10x-x-109'>sf = 1</span>: <span class='rm-lmr-10x-x-109'>sf </span><span class='lmmi-10x-x-109'>&gt; </span><span class='rm-lmr-10x-x-109'>1 </span>amplifies the feature, <span class='rm-lmr-10x-x-109'>sf = 0 </span>removes its active contribution, and negative
+values reverse it. As the perturbation is proportional to the feature’s natural activation, scale factors are
+comparable across prompts.
+</p><!-- l. 639 --><p class='indent'>   The diagnostic holds the prompt tokens fixed and compares the next-token distribution before and
+after the edit in a linearized CLT replacement forward. It asks whether the response scales
+linearly with edit size, and whether the Neumann attribution score predicts the measured
+slope.
+</p><!-- l. 641 --><p class='indent'>   Table <a href='#the-attribution-graphs-predicted-effect-versus-the-measured-effect-for-five-candidate-features-each-feature-is-perturbed-at-its-own-position-taken-from-its-selected-node-in-this-sentences-attribution-graph'>5<!-- tex4ht:ref: tab:linearized  --></a> compares prediction and intervention for the five candidate features, using the next-token
+<span class='ec-lmtt-10x-x-109'>However </span>logit on the AIME 2024 Problem 5 sentence as the fixed target. For feature <span class='lmmi-10x-x-109'>f</span>, the <span class='ec-lmri-10x-x-109'>Neumann
+gradient </span><span class='lmmi-10x-x-109'>g</span><sub><span class='lmmi-8'>f</span></sub><sup><span class='rm-lmr-8'>Neu</span></sup> is the graph-predicted derivative per unit activation, and the <span class='ec-lmri-10x-x-109'>observed slope </span><span class='lmmi-10x-x-109'>g</span><sub><span class='lmmi-8'>f</span></sub><sup><span class='rm-lmr-8'>obs</span></sup> is the
+measured finite-difference derivative:
+</p>
+   <table class='equation'><tr><td>
+   <div class='math-display'>
+<img alt='       SNeu                  logit      (sf)− logit      (1)
+gNfeu = --f→Ho0wever,    gofbs = ----However-------0-However--,
+           zf                          (sf − 1)zf' class='math-display' src='/paper-math/main27x.svg' /><a id='x1-37002r12'></a></div>
+                                                                                         
+                                                                                         
+   </td><td class='equation-label'>(12)</td></tr></table>
+<!-- l. 656 --><p class='nopar'>Here, <span class='lmmi-10x-x-109'>S</span><sub><span class='lmmi-8'>f</span><span class='lmsy8-'>→</span><span class='rm-lmr-8'>However</span></sub><sup><span class='rm-lmr-8'>Neu</span></sup> is <span class='lmmi-10x-x-109'>f</span>’s activation-weighted Neumann score, and <span class='rm-lmbx-10x-x-109'>z</span><sub><span class='lmmi-8'>f</span></sub><sup><span class='rm-lmr-8'>0</span></sup> is its baseline activation at the
+selected perturbation position. The quantity <span class='rm-lmr-10x-x-109'>logit</span><sub><span class='rm-lmr-8'>However</span></sub><span class='rm-lmr-10x-x-109'>(sf) </span>denotes the next-token   <span class='ec-lmtt-10x-x-109'>However </span>logit
+obtained when feature <span class='lmmi-10x-x-109'>f </span>is scaled by <span class='rm-lmr-10x-x-109'>sf</span> at that position; <span class='rm-lmr-10x-x-109'>logit</span><sub><span class='rm-lmr-8'>However</span></sub><span class='rm-lmr-10x-x-109'>(1) </span>is the unedited baseline. The ratio
+<span class='lmmi-10x-x-109'>ρ</span><sub><span class='lmmi-8'>f</span></sub> <span class='rm-lmr-10x-x-109'>= </span><span class='lmmi-10x-x-109'>g</span><sub><span class='lmmi-8'>f</span></sub><sup><span class='rm-lmr-8'>obs</span></sup><span class='lmmi-10x-x-109'>∕g</span><sub><span class='lmmi-8'>f</span></sub><sup><span class='rm-lmr-8'>Neu</span></sup> is the fraction of the graph-predicted effect realized by intervention; <span class='lmmi-10x-x-109'>ρ</span><sub><span class='lmmi-8'>f</span></sub> <span class='lmmi-10x-x-109'>&lt; </span><span class='rm-lmr-10x-x-109'>0 </span>means the
+measured effect points opposite to the prediction.
+</p><!-- l. 659 --><p class='indent'>   Under this protocol the response scales linearly with the edit, but Neumann scores do not predict
+causal magnitude. None of the observed-to-predicted ratios approaches one, and two Neumann-positive
+features have negative measured slopes.
+</p><!-- l. 661 --><p class='indent'>   This discrepancy is not a nonlinearity artifact: it persists even in the frozen linear regime. The
+mismatch is structural: the Neumann score credits <span class='lmmi-10x-x-109'>f </span>with the entire multi-hop path sum toward the logit,
+while the measured slope perturbs <span class='lmmi-10x-x-109'>f </span>alone. When negative routes dominate at the perturbed position, the
+marginal effect can point opposite to the aggregate score. Attribution scores are rankings, not causal
+magnitudes, and must be checked by intervention.
+</p><!-- l. 663 --><p class='indent'>   Combining the semantic and intervention evidence, we select L22:F31850 for the subsequent
+generation-time study. Its automated-interpretability label and top-activating examples align most
+directly with algebraic proof and logical continuation in AIME reasoning. It also has the largest
+observed-to-predicted ratio among the five candidates, indicating that the greatest fraction of its
+Neumann-predicted effect is realized under intervention. The selection therefore reflects both semantic
+relevance and causal support.
+</p>
+   <div class='table'>
+                                                                                         
+                                                                                         
+<!-- l. 665 --><p class='indent'>   </p>
+   </div>
+   
+   <h3 class='sectionHead' id='perturbation-experiments'><span class='titlemark'>6   </span>   <a id='x1-380006'></a>Perturbation Experiments</h3>
+<!-- l. 685 --><p class='noindent'>This section investigates what role the selected feature plays when Gemma-3-4B-IT generates AIME
+solutions autoregressively. We use the same scale-factor edit defined above in equation (<a href='#x1-37001r11'>11<!-- tex4ht:ref: eq:scale  --></a>), but apply it
+during generation.
+   
+</p>
+   <h4 class='subsectionHead' id='setup'><span class='titlemark'>6.1   </span>   <a id='x1-390006.1'></a>Setup</h4>
+   
+<!-- l. 690 --><p class='noindent'><span class='paragraphHead' id='periodtriggered-perturbations'> <a id='x1-40000'></a><span class='ec-lmbx-10x-x-109'>Period-triggered perturbations.</span></span>
+   L22:F31850 activates particularly strongly at sentence-ending period positions, so we restrict
+the intervention to those positions. Across the six discovery sentences, L22:F31850’s mean
+activation on sentence-ending period tokens is <span class='rm-lmr-10x-x-109'>3</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>1</span>–<span class='rm-lmr-10x-x-109'>8</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>6</span><span class='lmsy-10x-x-109'>× </span>higher than on other tokens, with a pooled
+ratio of <span class='rm-lmr-10x-x-109'>5</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>3</span><span class='lmsy-10x-x-109'>×</span>; Figure <a href='#pertoken-activation-of-l22f31850-across-two-of-the-six-discovery-sentences-each-bar-is-the-features-activation-at-one-token-position-red-bars-mark-tokens-whose-decoded-text-ends-in-a-period'>10<!-- tex4ht:ref: fig:per-token-activation  --></a> illustrates this concentration for two representative sentences. This
+consistent selectivity provides a natural trigger: during autoregressive generation, every token
+whose decoded form ends in a period is treated as a candidate intervention position, and
+the edit is applied when L22:F31850 has positive baseline activation at that position. The
+resulting protocol focuses the intervention on positions at which the feature is most consistently
+active.
+</p>
+   
+   
+<!-- l. 715 --><p class='noindent'><span class='paragraphHead' id='cachepropagated-period-interventions'> <a id='x1-41000'></a><span class='ec-lmbx-10x-x-109'>Cache-propagated period interventions.</span></span>
+   At each period trigger, the runner pauses generation and performs three full-prefix forwards. A clean
+vanilla forward records the target-feature activation and clean logits, caches the attention softmax
+patterns and RMSNorm scaling factors, and stores the per-layer MLP outputs used to compute
+reconstruction errors. A zero-perturbation replacement forward then computes the baseline CLT
+activations, fixes the JumpReLU/Top-<span class='lmmi-10x-x-109'>K </span>firing masks, and computes the reconstruction errors that are
+held fixed during the edit. An edited replacement forward applies the scale-factor edit to
+L22:F31850 while reusing these cached nonlinear states and captures the resulting K and V vectors for
+the period position. These perturbed K/V entries are written back into the live autoregressive cache,
+allowing the intervention to influence subsequent token generation through both attention weights and
+value aggregation [<a href='#Xv7_algorithm'>27</a>].
+   
+</p>
+<!-- l. 719 --><p class='noindent'><span class='paragraphHead' id='implementation1'> <a id='x1-42000'></a><span class='ec-lmbx-10x-x-109'>Implementation.</span></span>
+   We evaluate on the <span class='rm-lmr-10x-x-109'>30 </span>problems of AIME 2024 and the <span class='rm-lmr-10x-x-109'>30 </span>of AIME 2025 [<a href='#Xmaa_aime'>16</a>], with problems and
+reference answers taken from public datasets [<a href='#Xmatharena'>2</a>, <a href='#Xaime2024_hf'>17</a>]. For each problem and setting, we sample <span class='rm-lmr-10x-x-109'>128</span>
+solutions at temperature <span class='rm-lmr-10x-x-109'>1</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>0 </span>with a <span class='rm-lmr-10x-x-109'>2</span><span class='lmmi-10x-x-109'>,</span><span class='rm-lmr-10x-x-109'>048</span>-token generation budget under three settings: the unedited
+model (<span class='ec-lmbx-10x-x-109'>Vanilla</span>), amplification (<span class='rm-lmr-10x-x-109'>sf=3</span>), and reversal (<span class='rm-lmr-10x-x-109'>sf=</span><span class='lmsy-10x-x-109'>−</span><span class='rm-lmr-10x-x-109'>1</span>).
+</p><!-- l. 723 --><p class='indent'>   A solution is scored correct if its final boxed integer equals the reference answer. The
+edited runs contain <span class='rm-lmr-10x-x-109'>344</span><span class='lmmi-10x-x-109'>,</span><span class='rm-lmr-10x-x-109'>124 </span>(<span class='rm-lmr-10x-x-109'>sf=3</span>) and <span class='rm-lmr-10x-x-109'>319</span><span class='lmmi-10x-x-109'>,</span><span class='rm-lmr-10x-x-109'>946 </span>(<span class='rm-lmr-10x-x-109'>sf=</span><span class='lmsy-10x-x-109'>−</span><span class='rm-lmr-10x-x-109'>1</span>) period firings. Comparisons across
+settings are restricted to the <span class='rm-lmr-10x-x-109'>7</span><span class='lmmi-10x-x-109'>,</span><span class='rm-lmr-10x-x-109'>141 </span>problem–sample pairs for which all three settings produced a
+solution.
+   
+</p>
+   <h4 class='subsectionHead' id='results'><span class='titlemark'>6.2   </span>   <a id='x1-430006.2'></a>Results</h4>
+<!-- l. 728 --><p class='noindent'>We evaluate the cache-propagated intervention at three levels of granularity: the next-token distributions
+recorded at each intervened period (Figures <a href='#change-in-mean-nexttoken-probability-after-intervention-at-sentenceending-period-firings-averaged-over-all-firings-of-each-run-and-pooled-over-aime-2024-and-2025-tokens-are-ordered-by-their-change-under-amplification-and-the-gap-separates-the-ten-most-promoted-from-the-ten-most-suppressed'>11<!-- tex4ht:ref: fig:probability-shifts  --></a> and <a href='#composition-of-tokens-actually-generated-after-sentenceending-periods-in-the-7141-matched-aime-2024-and-2025-solutions-other-listed-tokens-combines-then-the-this-thus-and-also'>12<!-- tex4ht:ref: fig:generated-continuations  --></a>), the surface organization of complete
+sampled solutions (Tables <a href='#line-statistics-of-the-generated-solutions-averaged-over-the-same-7141-aime-2024-and-2025-problemsample-pairs-for-which-all-three-settings-produced-a-solution'>6<!-- tex4ht:ref: tab:linecount  --></a> and <a href='#matched-excerpts-showing-the-newline-effect-in-two-aime-2025-solutions-logical-connectives-are-in-bold'>7<!-- tex4ht:ref: tab:linebreak-excerpt  --></a>), and final-answer accuracy (Figure <a href='#perproblem-aime-accuracy-and-intervention-effects-the-left-panels-show-absolute-accuracy-for-vanilla-amplification-and-reversal-the-right-panels-show-amplification-and-reversal-minus-vanilla-in-percentage-points-with-the-dashed-black-line-marking-zero-change'>13<!-- tex4ht:ref: fig:perprob  --></a>). Across all three
+levels the same picture emerges: scaling L22:F31850 acts as a bidirectional control over the
+stop-versus-continue decision at sentence boundaries, and the resulting accuracy effect is real but
+problem-dependent.
+   
+</p>
+<!-- l. 730 --><p class='noindent'><span class='paragraphHead' id='the-perturbation-shifts-nexttoken-logits'> <a id='x1-44000'></a><span class='ec-lmbx-10x-x-109'>The perturbation shifts next-token logits.</span></span>
+   Figure <a href='#change-in-mean-nexttoken-probability-after-intervention-at-sentenceending-period-firings-averaged-over-all-firings-of-each-run-and-pooled-over-aime-2024-and-2025-tokens-are-ordered-by-their-change-under-amplification-and-the-gap-separates-the-ten-most-promoted-from-the-ten-most-suppressed'>11<!-- tex4ht:ref: fig:probability-shifts  --></a> reports the paired change in next-token probability at each intervened period. Because the
+clean and edited distributions are evaluated on the same prefix, this comparison isolates the immediate
+effect of the current intervention.
+</p><!-- l. 733 --><p class='indent'>   Amplification reduces the combined probability of <span class='ec-lmtt-10x-x-109'>\n </span>and <span class='ec-lmtt-10x-x-109'>\n\n </span>by <span class='rm-lmr-10x-x-109'>29</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>8 </span>percentage points, from <span class='rm-lmr-10x-x-109'>54</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>9%</span>
+to <span class='rm-lmr-10x-x-109'>25</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>0%</span>. The largest increases occur for   <span class='ec-lmtt-10x-x-109'>Since </span>(<span class='rm-lmr-10x-x-109'>+14</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>4 </span>points) and   <span class='ec-lmtt-10x-x-109'>We </span>(<span class='rm-lmr-10x-x-109'>+10</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>6</span>), followed by smaller
+gains for   <span class='ec-lmtt-10x-x-109'>So</span>,   <span class='ec-lmtt-10x-x-109'>Let</span>,   <span class='ec-lmtt-10x-x-109'>In</span>, and   <span class='ec-lmtt-10x-x-109'>However</span>. Reversal shifts the distribution in the opposite direction: the
+                                                                                         
+                                                                                         
+combined newline probability rises by <span class='rm-lmr-10x-x-109'>10</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>3 </span>points, from <span class='rm-lmr-10x-x-109'>75</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>0% </span>to <span class='rm-lmr-10x-x-109'>85</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>3%</span>, while   <span class='ec-lmtt-10x-x-109'>Since </span>and   <span class='ec-lmtt-10x-x-109'>We </span>decrease
+by <span class='rm-lmr-10x-x-109'>1</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>8 </span>and <span class='rm-lmr-10x-x-109'>3</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>0 </span>points. The effect is not a uniform increase in sentence-initial connectives, since   <span class='ec-lmtt-10x-x-109'>Then</span>,
+<span class='ec-lmtt-10x-x-109'>Also</span>, and   <span class='ec-lmtt-10x-x-109'>Thus </span>all decrease under amplification. Instead, the perturbation redistributes
+probability between newline tokens and a restricted set of continuations led by   <span class='ec-lmtt-10x-x-109'>Since </span>and
+<span class='ec-lmtt-10x-x-109'>We</span>.
+</p>
+   
+   
+<!-- l. 743 --><p class='noindent'><span class='paragraphHead' id='empirical-continuation-frequencies-reflect-the-probability-shifts'> <a id='x1-45000'></a><span class='ec-lmbx-10x-x-109'>Empirical continuation frequencies reflect the probability shifts.</span></span>
+   Figure <a href='#composition-of-tokens-actually-generated-after-sentenceending-periods-in-the-7141-matched-aime-2024-and-2025-solutions-other-listed-tokens-combines-then-the-this-thus-and-also'>12<!-- tex4ht:ref: fig:generated-continuations  --></a> reports the empirical frequencies of tokens generated after sentence-ending periods under
+each setting, complementing the fixed-prefix probability changes in Figure <a href='#change-in-mean-nexttoken-probability-after-intervention-at-sentenceending-period-firings-averaged-over-all-firings-of-each-run-and-pooled-over-aime-2024-and-2025-tokens-are-ordered-by-their-change-under-amplification-and-the-gap-separates-the-ten-most-promoted-from-the-ten-most-suppressed'>11<!-- tex4ht:ref: fig:probability-shifts  --></a>. The three settings have
+comparable numbers of period continuations, permitting direct comparison of their normalized
+compositions. Amplification reduces the newline share from <span class='rm-lmr-10x-x-109'>65</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>8% </span>to <span class='rm-lmr-10x-x-109'>24</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>4%</span>; separately,   <span class='ec-lmtt-10x-x-109'>Since </span>rises from
+<span class='rm-lmr-10x-x-109'>2</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>8% </span>to <span class='rm-lmr-10x-x-109'>18</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>3%</span>,   <span class='ec-lmtt-10x-x-109'>We </span>from <span class='rm-lmr-10x-x-109'>4</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>6% </span>to <span class='rm-lmr-10x-x-109'>17</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>1%</span>, and the pooled frequency of   <span class='ec-lmtt-10x-x-109'>So</span>,   <span class='ec-lmtt-10x-x-109'>Let</span>,   <span class='ec-lmtt-10x-x-109'>In</span>, and   <span class='ec-lmtt-10x-x-109'>However </span>from
+<span class='rm-lmr-10x-x-109'>4</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>0% </span>to <span class='rm-lmr-10x-x-109'>14</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>8%</span>. Reversal raises the newline share to <span class='rm-lmr-10x-x-109'>83</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>1%</span>, while   <span class='ec-lmtt-10x-x-109'>Since </span>and   <span class='ec-lmtt-10x-x-109'>We </span>fall independently to
+<span class='rm-lmr-10x-x-109'>0</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>1% </span>and <span class='rm-lmr-10x-x-109'>0</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>5%</span>, and the pooled connective group falls to <span class='rm-lmr-10x-x-109'>0</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>4%</span>. Thus, the fixed-prefix probability shifts
+survive sampling and are not tied to a single lexical item: scaling L22:F31850 rebalances line breaks
+against a restricted family of sentence-initial continuations throughout the autoregressive
+trajectory.
+</p>
+   
+   
+<!-- l. 754 --><p class='noindent'><span class='paragraphHead' id='the-tokenlevel-shift-compounds-into-the-layout-of-entire-solutions'> <a id='x1-46000'></a><span class='ec-lmbx-10x-x-109'>The token-level shift compounds into the layout of entire solutions.</span></span>
+   Compounded over an entire generation, the token-level shift produces a large change in how solutions
+are laid out on the page. Over the <span class='rm-lmr-10x-x-109'>7</span><span class='lmmi-10x-x-109'>,</span><span class='rm-lmr-10x-x-109'>141 </span>matched problem–sample pairs, amplification roughly halves the
+number of lines per solution (<span class='rm-lmr-10x-x-109'>37</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>6 </span><span class='lmsy-10x-x-109'>→</span><span class='rm-lmr-10x-x-109'>20</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>0</span>) and doubles the mean line length (<span class='rm-lmr-10x-x-109'>40</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>5 </span><span class='lmsy-10x-x-109'>→</span><span class='rm-lmr-10x-x-109'>81</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>8 </span>tokens), while
+reversal moves both statistics in the opposite direction (<span class='rm-lmr-10x-x-109'>44</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>2 </span>lines of <span class='rm-lmr-10x-x-109'>33</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>7 </span>tokens each; Table <a href='#line-statistics-of-the-generated-solutions-averaged-over-the-same-7141-aime-2024-and-2025-problemsample-pairs-for-which-all-three-settings-produced-a-solution'>6<!-- tex4ht:ref: tab:linecount  --></a>). Table <a href='#matched-excerpts-showing-the-newline-effect-in-two-aime-2025-solutions-logical-connectives-are-in-bold'>7<!-- tex4ht:ref: tab:linebreak-excerpt  --></a>
+makes this aggregate shift concrete in two matched examples. For AIME 2025 Problem 10, the
+unedited solution places each step of the case analysis on its own line, whereas amplification
+(<span class='rm-lmr-10x-x-109'>sf = 3</span>) joins each case into a continuous sentence chain that reaches the same roots. For
+AIME 2025 Problem 21, the corresponding contrast is one fact per line versus connected
+paragraphs. These examples are the per-solution manifestation of the line-count statistics in
+Table <a href='#line-statistics-of-the-generated-solutions-averaged-over-the-same-7141-aime-2024-and-2025-problemsample-pairs-for-which-all-three-settings-produced-a-solution'>6<!-- tex4ht:ref: tab:linecount  --></a>.
+</p>
+   <div class='table'>
+                                                                                         
+                                                                                         
+<!-- l. 757 --><p class='indent'>   </p>
+   </div>
+   <div class='table'>
+                                                                                         
+                                                                                         
+<!-- l. 774 --><p class='indent'>   </p>
+   </div>
+   
+<!-- l. 822 --><p class='noindent'><span class='paragraphHead' id='accuracy-effects-are-modest-in-aggregate-and-heterogeneous-across-problems'> <a id='x1-47000'></a><span class='ec-lmbx-10x-x-109'>Accuracy effects are modest in aggregate and heterogeneous across problems.</span></span>
+   Figure <a href='#perproblem-aime-accuracy-and-intervention-effects-the-left-panels-show-absolute-accuracy-for-vanilla-amplification-and-reversal-the-right-panels-show-amplification-and-reversal-minus-vanilla-in-percentage-points-with-the-dashed-black-line-marking-zero-change'>13<!-- tex4ht:ref: fig:perprob  --></a> reports both absolute final-answer accuracy and the per-problem change relative to Vanilla
+for AIME 2024 and 2025, with all three settings scored on identical matched samples. Aggregate effects
+are modest. The aggregate, however, understates the per-problem structure, because more than half of the
+problems are at a <span class='rm-lmr-10x-x-109'>0% </span>floor under every setting and the remaining problems move in both directions.
+Amplification more than doubles accuracy on 2024 Problem 12 (<span class='rm-lmr-10x-x-109'>17</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>3% </span><span class='lmsy-10x-x-109'>→</span><span class='rm-lmr-10x-x-109'>41</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>3%</span>) and adds <span class='rm-lmr-10x-x-109'>12</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>5 </span>points on
+2024 Problem 2 (<span class='rm-lmr-10x-x-109'>70</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>3% </span><span class='lmsy-10x-x-109'>→</span><span class='rm-lmr-10x-x-109'>82</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>8%</span>), yet costs <span class='rm-lmr-10x-x-109'>4</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>7 </span>points on 2024 Problem 23, where reversal is instead
+the beneficial direction (<span class='rm-lmr-10x-x-109'>18</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>8% </span><span class='lmsy-10x-x-109'>→ </span><span class='rm-lmr-10x-x-109'>27</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>3%</span>). No single setting is best on every problem: the
+intervention reliably changes how the model writes, and whether that helps depends on the
+problem.
+</p>
+   
+   
+<!-- l. 833 --><p class='noindent'><span class='paragraphHead' id='a-representative-trajectorylevel-effect'> <a id='x1-48000'></a><span class='ec-lmbx-10x-x-109'>A representative trajectory-level effect.</span></span>
+   Figure <a href='#perproblem-aime-accuracy-and-intervention-effects-the-left-panels-show-absolute-accuracy-for-vanilla-amplification-and-reversal-the-right-panels-show-amplification-and-reversal-minus-vanilla-in-percentage-points-with-the-dashed-black-line-marking-zero-change'>13<!-- tex4ht:ref: fig:perprob  --></a> establishes that the accuracy effect is problem-dependent. Table <a href='#aime-2024-problem-12-case-study-amplification-increases-matchedsample-accuracy-from-173-to-413-240-percentage-points-and-supplies-an-omitted-unit-conversion-in-the-representative-trajectory'>8<!-- tex4ht:ref: tab:trajectory-example  --></a> focuses on the clearest
+positive case, AIME 2024 Problem 12, where amplification raises accuracy from <span class='rm-lmr-10x-x-109'>17</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>3% </span>to <span class='rm-lmr-10x-x-109'>41</span><span class='lmmi-10x-x-109'>.</span><span class='rm-lmr-10x-x-109'>3%</span>. At the
+displayed period, the edit changes the top next-token prediction from a line break to   <span class='ec-lmtt-10x-x-109'>Since</span>; the sampled
+continuation then performs the hours-to-minutes conversion that a representative Vanilla failure omits.
+The clean/edit probability comparison is paired on an identical prefix within the amplified rollout. The
+Vanilla text comes from a separate rollout and is included as an illustrative failure, not as a
+common-prefix counterfactual completion.
+</p>
+   <div class='table'>
+                                                                                         
+                                                                                         
+<!-- l. 836 --><p class='indent'>   </p>
+   </div>
+   
+   <h3 class='sectionHead' id='conclusion'><span class='titlemark'>7   </span>   <a id='x1-490007'></a>Conclusion</h3>
+<!-- l. 867 --><p class='noindent'>The intervention isolates a direct behavioral role for L22:F31850: at sentence-ending periods, increasing its
+activation suppresses newline and stop behavior and promotes a restricted set of connective continuations,
+especially   <span class='ec-lmtt-10x-x-109'>Since </span>and   <span class='ec-lmtt-10x-x-109'>We</span>. Its effect on correctness, however, is conditional rather than uniformly
+beneficial. Continuing the argument helps when the unedited model breaks or concludes before a necessary
+step, as in AIME 2024 Problem 12, but can hurt when a problem benefits from committing to an answer
+or following a different trajectory. Consequently, a large and reproducible behavioral effect yields only a
+modest aggregate accuracy change and heterogeneous per-problem effects. The central distinction is
+therefore between controlling <span class='ec-lmri-10x-x-109'>how </span>the model continues its reasoning and improving <span class='ec-lmri-10x-x-109'>whether </span>it reaches the
+correct answer: L22:F31850 causally steers the former, but it is not a general-purpose accuracy
+knob.
+                                                                                         
+                                                                                         
+   
+</p>
+   <h3 class='likesectionHead' id='references'>  <a id='x1-57000'></a>References</h3>
+<!-- l. 1 --><p class='noindent'>
+                                                                                         
+                                                                                         
+    </p><section class='thebibliography' role='doc-bibliography'><dl><dt>
+ [1] </dt><dd><a id='Xameisen2025circuit'></a>Emmanuel Ameisen, Jack Lindsey, Adam Pearce, Wes Gurnee, Nicholas L. Turner, Brian
+    Chen,  Craig  Citro,  David  Abrahams,  Shan  Carter,  Basil  Hosmer,  Jonathan  Marcus,
+    Michael Sklar, Adly Templeton, Trenton Bricken, Callum McDougall, Hoagy Cunningham,
+    Thomas  Henighan,  Adam  Jermyn,  Andy  Jones,  Andrew  Persic,  Zhenyi  Qi,  T. Ben
+    Thompson,  Thomas  Conerly,  Chris  Olah,  and  Joshua  Batson.   Circuit  tracing:  Revealing
+    computational  graphs  in  language  models.      <span class='ec-lmri-10x-x-109'>Transformer  Circuits  Thread</span>,  2025.      
+<a class='url' href='https://transformer-circuits.pub/2025/attribution-graphs/methods.html'><span class='ec-lmtt-10x-x-109'>https://transformer-circuits.pub/2025/attribution-graphs/methods.html</span></a>.
+    </dd><dt>
+ [2] </dt><dd><a id='Xmatharena'></a>Mislav   Balunović,   Jasper   Dekoninck,   Ivo   Petrov,   Nikola   Jovanović,   and   Martin
+    Vechev.      MathArena:  Evaluating  LLMs  on  uncontaminated  math  competitions.      
+<a class='url' href='https://matharena.ai'><span class='ec-lmtt-10x-x-109'>https://matharena.ai</span></a>, 2025.
+    </dd><dt>
+ [3] </dt><dd><a id='Xbhaskar2024edgepruning'></a>Adithya Bhaskar, Alexander Wettig, Dan Friedman, and Danqi Chen.  Finding transformer
+    circuits with edge pruning, 2024.
+    </dd><dt>
+ [4] </dt><dd><a id='Xbills2023'></a>Steven                                                   Bills,                                                   Nick
+    Cammarata, Dan Mossing, Henk Tillman, Leo Gao, Gabriel Goh, Ilya Sutskever, Jan Leike,
+    Jeff Wu, and William Saunders.  Language models can explain neurons in language models.  
+<a class='url' href='https://openaipublic.blob.core.windows.net/neuron-explainer/paper/index.html'><span class='ec-lmtt-10x-x-109'>https://openaipublic.blob.core.windows.net/neuron-explainer/paper/index.html</span></a>,
+    2023. OpenAI.
+    </dd><dt>
+ [5] </dt><dd><a id='Xbricken2023monosemanticity'></a>Trenton Bricken, Adly Templeton, Joshua Batson, Brian Chen, Adam Jermyn, Tom Conerly,
+    Nick  Turner,  Cem  Anil,  Carson  Denison,  Amanda  Askell,  Robert  Lasenby,  Yifan  Wu,
+    Shauna  Kravec,  Nicholas  Schiefer,  Tim  Maxwell,  Nicholas  Joseph,  Zac  Hatfield-Dodds,
+    Alex  Tamkin,  Karina  Nguyen,  Brayden  McLean,  Josiah E.  Burke,  Tristan  Hume,  Shan
+    Carter,  Tom  Henighan,  and  Christopher  Olah.   Towards  monosemanticity:  Decomposing
+    language  models  with  dictionary  learning.      <span class='ec-lmri-10x-x-109'>Transformer  Circuits  Thread</span>,  2023.      
+<a class='url' href='https://transformer-circuits.pub/2023/monosemantic-features'><span class='ec-lmtt-10x-x-109'>https://transformer-circuits.pub/2023/monosemantic-features</span></a>.
+    </dd><dt>
+ [6] </dt><dd><a id='Xconmy2023acdc'></a>Arthur Conmy, Augustine N. Mavor-Parker, Aengus Lynch, Stefan Heimersheim, and Adrià
+    Garriga-Alonso. Towards automated circuit discovery for mechanistic interpretability, 2023.
+    </dd><dt>
+ [7] </dt><dd><a id='Xdunefsky2024transcoders'></a>Jacob Dunefsky, Philippe Chlenski, and Neel Nanda.   Transcoders find interpretable LLM
+    feature circuits. <span class='ec-lmri-10x-x-109'>arXiv preprint arXiv:2406.11944</span>, 2024.
+    </dd><dt>
+ [8] </dt><dd><a id='Xelhage2021framework'></a>Nelson Elhage, Neel Nanda, Catherine Olsson, Tom Henighan, Nicholas Joseph, Ben Mann,
+    Amanda Askell, Yuntao Bai, Anna Chen, Tom Conerly, Nova DasSarma, Dawn Drain, Deep
+    Ganguli, Zac Hatfield-Dodds, Danny Hernandez, Andy Jones, Jackson Kernion, Liane Lovitt,
+    Kamal Ndousse, Dario Amodei, Tom Brown, Jack Clark, Jared Kaplan, Sam McCandlish, and
+    Chris Olah. A mathematical framework for transformer circuits. <span class='ec-lmri-10x-x-109'>Transformer Circuits Thread</span>,
+    2021. <a class='url' href='https://transformer-circuits.pub/2021/framework/index.html'><span class='ec-lmtt-10x-x-109'>https://transformer-circuits.pub/2021/framework/index.html</span></a>.
+                                                                                         
+                                                                                         
+    </dd><dt>
+ [9] </dt><dd><a id='Xelhage2022superposition'></a>Nelson Elhage, Tristan Hume, Catherine Olsson, Nicholas Schiefer, Tom Henighan, Shauna
+    Kravec,  Zac  Hatfield-Dodds,  Robert  Lasenby,  Dawn  Drain,  Carol  Chen,  Roger  Grosse,
+    Sam  McCandlish,  Jared  Kaplan,  Dario  Amodei,  Martin  Wattenberg,  and  Christopher
+    Olah.       Toy   models   of   superposition.       <span class='ec-lmri-10x-x-109'>Transformer   Circuits   Thread</span>,   2022.       
+<a class='url' href='https://transformer-circuits.pub/2022/toy_model/index.html'><span class='ec-lmtt-10x-x-109'>https://transformer-circuits.pub/2022/toy_model/index.html</span></a>.
+    </dd><dt>
+[10] </dt><dd><a id='Xpile'></a>Leo Gao, Stella Biderman, Sid Black, Laurence Golding, Travis Hoppe, Charles Foster, Jason
+    Phang, Horace He, Anish Thite, Noa Nabeshima, Shawn Presser, and Connor Leahy. The Pile:
+    An 800GB dataset of diverse text for language modeling, 2020.  Copyright-filtered variant:
+    <span class='ec-lmtt-10x-x-109'>monology/pile-uncopyrighted</span>.
+    </dd><dt>
+[11] </dt><dd><a id='Xgemma3'></a>Gemma  Team,  Google  DeepMind.     Gemma  3  technical  report,  2025.     Base  model:
+    <span class='ec-lmtt-10x-x-109'>google/gemma-3-4b-it</span>.
+    </dd><dt>
+[12] </dt><dd><a id='Xgeva2021kv'></a>Mor Geva, Roei Schuster, Jonathan Berant, and Omer Levy. Transformer feed-forward layers
+    are key-value memories.   In <span class='ec-lmri-10x-x-109'>Proceedings of the 2021 Conference on Empirical Methods in
+    Natural Language Processing</span>, pages 5484–5495, 2021.
+    </dd><dt>
+[13] </dt><dd><a id='Xmarks2023dictionarylearning'></a>Max Li, Samuel Marks, and Aaron Mueller.  dictionary_learning.  GitHub repository, 2023.  
+<a class='url' href='https://github.com/saprmarks/dictionary_learning'><span class='ec-lmtt-10x-x-109'>https://github.com/saprmarks/dictionary_learning</span></a>.
+    </dd><dt>
+[14] </dt><dd><a id='Xlindsey2024crosscoders'></a>Jack                                                  Lindsey,                                                  Adly
+    Templeton, Jonathan Marcus, Thomas Conerly, Joshua Batson, and Christopher Olah. Sparse
+    crosscoders for cross-layer features and model diffing.  <span class='ec-lmri-10x-x-109'>Transformer Circuits Thread</span>, 2024.  
+<a class='url' href='https://transformer-circuits.pub/2024/crosscoders/index.html'><span class='ec-lmtt-10x-x-109'>https://transformer-circuits.pub/2024/crosscoders/index.html</span></a>.
+    </dd><dt>
+[15] </dt><dd><a id='Xlindsey2025biology'></a>Jack                              Lindsey,                              Wes                              Gurnee,
+    Emmanuel  Ameisen,  Brian  Chen,  Adam  Pearce,  Nicholas L.  Turner,  Craig  Citro,  David
+    Abrahams, Shan Carter, Basil Hosmer, Jonathan Marcus, Michael Sklar, Adly Templeton,
+    Trenton Bricken, Callum McDougall, Hoagy Cunningham, Thomas Henighan, Adam Jermyn,
+    Andy Jones, Andrew Persic, Zhenyi Qi, T. Ben Thompson, Thomas Conerly, Chris Olah, and
+    Joshua Batson. On the biology of a large language model. <span class='ec-lmri-10x-x-109'>Transformer Circuits Thread</span>, 2025.
+    <a class='url' href='https://transformer-circuits.pub/2025/attribution-graphs/biology.html'><span class='ec-lmtt-10x-x-109'>https://transformer-circuits.pub/2025/attribution-graphs/biology.html</span></a>.
+    </dd><dt>
+[16] </dt><dd><a id='Xmaa_aime'></a>Mathematical  Association  of  America.    American  invitational  mathematics  examination
+    (AIME). <a class='url' href='https://maa.org/maa-invitational-competitions/'><span class='ec-lmtt-10x-x-109'>https://maa.org/maa-invitational-competitions/</span></a>, 2025.
+    </dd><dt>
+[17] </dt><dd><a id='Xaime2024_hf'></a>Maxwell-Jia.                                  AIME_2024            dataset.                                  
+<a class='url' href='https://huggingface.co/datasets/Maxwell-Jia/AIME_2024'><span class='ec-lmtt-10x-x-109'>https://huggingface.co/datasets/Maxwell-Jia/AIME_2024</span></a>, 2024.
+    </dd><dt>
+[18] </dt><dd><a id='Xmeng2022rome'></a>Kevin Meng, David Bau, Alex Andonian, and Yonatan Belinkov. Locating and editing factual
+    associations in GPT. In <span class='ec-lmri-10x-x-109'>Advances in Neural Information Processing Systems</span>, volume 35, 2022.
+                                                                                         
+                                                                                         
+    </dd><dt>
+[19] </dt><dd><a id='Xopenwebmath'></a>Keiran Paster, Marco Dos Santos, Zhangir Azerbayev, and Jimmy Ba.  OpenWebMath: An
+    open dataset of high-quality mathematical web text, 2023.
+    </dd><dt>
+[20] </dt><dd><a id='Xradford2019language'></a>Alec Radford, Jeffrey Wu, Rewon Child, David Luan, Dario Amodei, and Ilya Sutskever.
+    Language models are unsupervised multitask learners, 2019. OpenAI Technical Report.
+    </dd><dt>
+[21] </dt><dd><a id='Xsyed2023attribution'></a>Aaquib Syed, Can Rager, and Arthur Conmy.  Attribution patching outperforms automated
+    circuit discovery, 2023.
+    </dd><dt>
+[22] </dt><dd><a id='Xtempleton2024predicting'></a>Adly                   Templeton,                   Joshua                   Batson,                   Adam
+    Jermyn, and Chris Olah.  Predicting future activations.  <span class='ec-lmri-10x-x-109'>Transformer Circuits Thread</span>, 2024.  
+<a class='url' href='https://transformer-circuits.pub/2024/jan-update/index.html#predict-future'><span class='ec-lmtt-10x-x-109'>https://transformer-circuits.pub/2024/jan-update/index.html#predict-future</span></a>.
+    </dd><dt>
+[23] </dt><dd><a id='Xtempleton2024scaling'></a>Adly   Templeton,   Tom   Conerly,   Jonathan   Marcus,   Jack   Lindsey,   Trenton   Bricken,
+    Brian   Chen,   Adam   Pearce,   Craig   Citro,   Emmanuel   Ameisen,   Andy   Jones,   Hoagy
+    Cunningham,  Nicholas L.  Turner,  Callum  McDougall,  Monte  MacDiarmid,  C. Daniel
+    Freeman,  Theodore R.  Sumers,  Edward  Rees,  Joshua  Batson,  Adam  Jermyn,  Shan
+    Carter,   Chris   Olah,   and   Tom   Henighan.       Scaling   monosemanticity:   Extracting
+    interpretable  features  from  Claude  3  Sonnet.     <span class='ec-lmri-10x-x-109'>Transformer  Circuits  Thread</span>,  2024.     
+<a class='url' href='https://transformer-circuits.pub/2024/scaling-monosemanticity/'><span class='ec-lmtt-10x-x-109'>https://transformer-circuits.pub/2024/scaling-monosemanticity/</span></a>.
+    </dd><dt>
+[24] </dt><dd><a id='Xcurrent_training_pipeline'></a>Transcoder Explore Project.  Current clt training pipeline investigation, 2026.  Local project
+    file: paper_investigation/stages/04_current_clt_training_pipeline.md.
+    </dd><dt>
+[25] </dt><dd><a id='Xefficient_transcoder_notes'></a>Transcoder Explore Project. Efficient transcoder network structure notes, 2026. Local project
+    file: paper_investigation/Efficient Transcoder.pdf.
+    </dd><dt>
+[26] </dt><dd><a id='Xtraining_pipeline'></a>Transcoder Explore Project.  Transcoder training pipeline overview, 2026.  Local project file:
+    HydraTranscoder/docs/training_pipeline_overview.md.
+    </dd><dt>
+[27] </dt><dd><a id='Xv7_algorithm'></a>Transcoder Explore Project.  V7 algorithm: Vanilla mainline, paired snapshot, and kv cache
+    rewrite, 2026. Local project file: notes/v7_algorithm.md.
+    </dd><dt>
+[28] </dt><dd><a id='Xvaswani2017attention'></a>Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez,
+    Łukasz  Kaiser,  and  Illia  Polosukhin.   Attention  is  all  you  need.   In  <span class='ec-lmri-10x-x-109'>Advances  in  Neural
+    Information Processing Systems</span>, volume 30, 2017.
+    </dd><dt>
+[29] </dt><dd><a id='Xyu2024discogp'></a>Lei Yu, Jingcheng Niu, Zining Zhu, and Gerald Penn.  Functional faithfulness in the wild:
+    Circuit discovery with differentiable computation graph pruning, 2024.
+    </dd></dl></section>
+    

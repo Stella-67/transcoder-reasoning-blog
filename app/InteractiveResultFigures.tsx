@@ -2,19 +2,101 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-const activationRows = [
-  { id: "24-5", label: "2024 P5", target: "However", tokens: 162, periods: 6, active: 132, periodMean: 3.2070, otherMean: 0.6062, ratio: 5.2903, periodMax: 5.75, otherMax: 4.25 },
-  { id: "24-12", label: "2024 P12", target: "However", tokens: 272, periods: 6, active: 137, periodMean: 3.8451, otherMean: 0.4460, ratio: 8.6211, periodMax: 5.25, otherMax: 3.1719 },
-  { id: "24-29", label: "2024 P29", target: "Since", tokens: 88, periods: 3, active: 44, periodMean: 2.3255, otherMean: 0.4031, ratio: 5.7696, periodMax: 6.125, otherMax: 3.1406 },
-  { id: "25-5", label: "2025 P5", target: "Since", tokens: 116, periods: 6, active: 85, periodMean: 1.8900, otherMean: 0.6048, ratio: 3.1248, periodMax: 5.25, otherMax: 3.2656 },
-  { id: "25-12", label: "2025 P12", target: "However", tokens: 133, periods: 5, active: 82, periodMean: 2.1477, otherMean: 0.3813, ratio: 5.6329, periodMax: 5.6875, otherMax: 3.3906 },
-  { id: "25-23", label: "2025 P23", target: "So", tokens: 146, periods: 5, active: 83, periodMean: 2.1055, otherMean: 0.5510, ratio: 3.8213, periodMax: 4.9063, otherMax: 5.6563 },
-];
+import periodTokenActivations from "./period-token-activations.json";
+
+type ActivationSentence = {
+  id: string;
+  slug: string;
+  label: string;
+  target: string;
+  tokens: string[];
+  activations: number[];
+  periods: number[];
+  nTokens: number;
+  nPeriod: number;
+  active: number;
+  periodMean: number;
+  otherMean: number;
+  ratio: number;
+  periodMax: number;
+  otherMax: number;
+};
+
+const activationSentences: ActivationSentence[] = periodTokenActivations.sentences;
+const pooledPeriodRatio = periodTokenActivations.pooledRatio;
+
+const PROFILE_WIDTH = 1000;
+const PROFILE_HEIGHT = 300;
+const PROFILE_MARGIN = { top: 24, right: 104, bottom: 50, left: 46 };
+const PROFILE_PLOT_WIDTH = PROFILE_WIDTH - PROFILE_MARGIN.left - PROFILE_MARGIN.right;
+const PROFILE_PLOT_HEIGHT = PROFILE_HEIGHT - PROFILE_MARGIN.top - PROFILE_MARGIN.bottom;
+// One y-scale for all six prompts so switching tabs compares like with like.
+const PROFILE_Y_MAX = Math.ceil(
+  Math.max(...activationSentences.flatMap((sentence) => sentence.activations)) * 2,
+) / 2;
+const PROFILE_Y_TICKS = Array.from({ length: Math.floor(PROFILE_Y_MAX / 2) + 1 }, (_, i) => i * 2);
+const TOOLTIP_HEIGHT = 46;
+const TOOLTIP_PAD = 20;
+// The tooltip is monospaced, so character count is a reliable width.
+const TOOLTIP_CHAR_WIDTH = 7.5;
+
+function profileY(value: number) {
+  const y = PROFILE_MARGIN.top + (1 - value / PROFILE_Y_MAX) * PROFILE_PLOT_HEIGHT;
+  return Number(y.toFixed(2));
+}
+
+function profileSlot(count: number) {
+  return PROFILE_PLOT_WIDTH / count;
+}
+
+function profileX(index: number, slot: number, width: number) {
+  return Number((PROFILE_MARGIN.left + index * slot + (slot - width) / 2).toFixed(2));
+}
+
+function xTickStep(count: number) {
+  return Math.max(10, Math.ceil(count / 80) * 10);
+}
+
+// "▁has" -> " has"; keeps leading spaces and newlines visible inside the quotes.
+function tokenLabel(token: string) {
+  const text = token.replace(/▁/g, " ").replace(/\n/g, "\\n");
+  return text.length > 24 ? `${text.slice(0, 23)}…` : text;
+}
 
 export function InteractiveActivationFigure() {
   const [selectedId, setSelectedId] = useState("24-12");
-  const selected = activationRows.find((row) => row.id === selectedId) ?? activationRows[1];
-  const axisMax = 4.25;
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const selected = activationSentences.find((row) => row.id === selectedId) ?? activationSentences[1];
+
+  const periodSet = useMemo(() => new Set(selected.periods), [selected]);
+  const slot = profileSlot(selected.nTokens);
+  const barWidth = Math.max(1.4, slot * 0.78);
+  const periodBarWidth = Math.max(barWidth, 2.2);
+  const baseline = profileY(0);
+  const tickStep = xTickStep(selected.nTokens);
+  const xTicks = Array.from({ length: Math.floor((selected.nTokens - 1) / tickStep) + 1 }, (_, i) => i * tickStep);
+
+  const hovered = hoveredIndex === null ? null : {
+    index: hoveredIndex,
+    activation: selected.activations[hoveredIndex],
+    lines: [
+      `#${hoveredIndex} “${tokenLabel(selected.tokens[hoveredIndex])}”`,
+      `activation ${selected.activations[hoveredIndex].toFixed(2)}`
+        + (periodSet.has(hoveredIndex) ? " · sentence-ending period" : ""),
+    ],
+  };
+  const tooltipWidth = hovered === null
+    ? 0
+    : TOOLTIP_PAD + TOOLTIP_CHAR_WIDTH * Math.max(...hovered.lines.map((line) => line.length));
+  const tooltipX = hovered === null
+    ? 0
+    : Math.min(
+        PROFILE_WIDTH - PROFILE_MARGIN.right - tooltipWidth,
+        Math.max(PROFILE_MARGIN.left, profileX(hovered.index, slot, 0) - tooltipWidth / 2),
+      );
+  const tooltipY = hovered === null
+    ? 0
+    : Math.max(PROFILE_MARGIN.top, profileY(hovered.activation) - TOOLTIP_HEIGHT - 8);
 
   return (
     <figure className="research-figure full-bleed interactive-figure activation-interactive">
@@ -24,12 +106,15 @@ export function InteractiveActivationFigure() {
           <strong>Where does L22:F31850 activate?</strong>
         </div>
         <div className="prompt-tabs" role="group" aria-label="Choose a discovery prompt">
-          {activationRows.map((row) => (
+          {activationSentences.map((row) => (
             <button
               type="button"
               key={row.id}
               aria-pressed={selected.id === row.id}
-              onClick={() => setSelectedId(row.id)}
+              onClick={() => {
+                setSelectedId(row.id);
+                setHoveredIndex(null);
+              }}
             >
               {row.label}
             </button>
@@ -39,47 +124,203 @@ export function InteractiveActivationFigure() {
 
       <div className="activation-comparison" aria-live="polite">
         <div className="activation-context">
-          <span>{selected.label} · target <code>{selected.target}</code></span>
-          <strong>{selected.ratio.toFixed(1)}×</strong>
-          <p>higher mean activation on sentence-ending periods</p>
-          <dl>
-            <div><dt>Tokens</dt><dd>{selected.tokens}</dd></div>
-            <div><dt>Periods</dt><dd>{selected.periods}</dd></div>
-            <div><dt>Active positions</dt><dd>{selected.active}</dd></div>
+          <p className="context-prompt">
+            {selected.label}
+            <span>target <code>{selected.target}</code></span>
+          </p>
+
+          <div className="context-ratio">
+            <strong>{selected.ratio.toFixed(1)}<span>×</span></strong>
+            <span>period mean ÷ other mean</span>
+          </div>
+
+          <dl className="context-split">
+            <div className="is-period">
+              <dt>period mean</dt>
+              <dd>{selected.periodMean.toFixed(2)}</dd>
+              <small>{selected.nPeriod} positions</small>
+            </div>
+            <div className="is-other">
+              <dt>other mean</dt>
+              <dd>{selected.otherMean.toFixed(2)}</dd>
+              <small>{selected.nTokens - selected.nPeriod} positions</small>
+            </div>
+          </dl>
+
+          <dl className="context-stats">
+            <div><dt>Prompt tokens</dt><dd>{selected.nTokens}</dd></div>
+            <div><dt>Nonzero positions</dt><dd>{selected.active}</dd></div>
+            <div><dt>Peak on a period</dt><dd>{selected.periodMax.toFixed(2)}</dd></div>
+            <div><dt>Peak elsewhere</dt><dd>{selected.otherMax.toFixed(2)}</dd></div>
           </dl>
         </div>
 
-        <div className="activation-bars" role="img" aria-label={`Mean activation for ${selected.label}: ${selected.periodMean.toFixed(2)} on period tokens and ${selected.otherMean.toFixed(2)} on other tokens.`}>
-          <div className="activation-axis" aria-hidden="true"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span></div>
-          <div className="activation-bar-row period-bar-row">
-            <div><strong>Period tokens</strong><small>sentence boundary</small></div>
-            <div className="activation-track">
-              <i style={{ width: `${Math.min(100, (selected.periodMean / axisMax) * 100)}%` }} />
-              <span style={{ left: `${Math.min(96, (selected.periodMean / axisMax) * 100)}%` }}>{selected.periodMean.toFixed(2)}</span>
-            </div>
+        <div className="activation-bars">
+          <div className="activation-legend" aria-hidden="true">
+            <span className="is-period"><i />sentence-ending period</span>
+            <span className="is-other"><i />other token</span>
+            <span className="is-mean"><i />class mean</span>
           </div>
-          <div className="activation-bar-row other-bar-row">
-            <div><strong>Other tokens</strong><small>all remaining positions</small></div>
-            <div className="activation-track">
-              <i style={{ width: `${Math.min(100, (selected.otherMean / axisMax) * 100)}%` }} />
-              <span style={{ left: `${Math.min(96, (selected.otherMean / axisMax) * 100)}%` }}>{selected.otherMean.toFixed(2)}</span>
-            </div>
+
+          <div className="activation-profile-scroll">
+          <svg
+            className="activation-profile"
+            viewBox={`0 0 ${PROFILE_WIDTH} ${PROFILE_HEIGHT}`}
+            role="img"
+            aria-label={`Per-token activation of L22:F31850 on ${selected.label}. Mean ${selected.periodMean.toFixed(2)} on the ${selected.nPeriod} sentence-ending period tokens versus ${selected.otherMean.toFixed(2)} on the other ${selected.nTokens - selected.nPeriod} positions, a ratio of ${selected.ratio.toFixed(1)} times.`}
+            onPointerLeave={() => setHoveredIndex(null)}
+          >
+            <g className="profile-grid" aria-hidden="true">
+              {PROFILE_Y_TICKS.filter((tick) => tick > 0).map((tick) => (
+                <line
+                  key={tick}
+                  x1={PROFILE_MARGIN.left}
+                  x2={PROFILE_WIDTH - PROFILE_MARGIN.right}
+                  y1={profileY(tick)}
+                  y2={profileY(tick)}
+                />
+              ))}
+            </g>
+
+            <g className="profile-axes" aria-hidden="true">
+              <line
+                x1={PROFILE_MARGIN.left}
+                x2={PROFILE_MARGIN.left}
+                y1={PROFILE_MARGIN.top}
+                y2={baseline}
+              />
+              <line
+                x1={PROFILE_MARGIN.left}
+                x2={PROFILE_WIDTH - PROFILE_MARGIN.right}
+                y1={baseline}
+                y2={baseline}
+              />
+              {PROFILE_Y_TICKS.map((tick) => (
+                <text key={tick} x={PROFILE_MARGIN.left - 8} y={profileY(tick) + 3.5} textAnchor="end">
+                  {tick}
+                </text>
+              ))}
+              {xTicks.map((tick) => (
+                <text
+                  key={tick}
+                  x={profileX(tick, slot, 0)}
+                  y={baseline + 26}
+                  textAnchor="middle"
+                >
+                  {tick}
+                </text>
+              ))}
+              <text className="axis-label" x={4} y={PROFILE_MARGIN.top - 10}>
+                activation
+              </text>
+              <text
+                className="axis-label"
+                x={PROFILE_MARGIN.left + PROFILE_PLOT_WIDTH / 2}
+                y={PROFILE_HEIGHT - 6}
+                textAnchor="middle"
+              >
+                token position
+              </text>
+            </g>
+
+            <g className="profile-means" aria-hidden="true">
+              <line
+                className="mean-other"
+                x1={PROFILE_MARGIN.left}
+                x2={PROFILE_WIDTH - PROFILE_MARGIN.right}
+                y1={profileY(selected.otherMean)}
+                y2={profileY(selected.otherMean)}
+              />
+              <line
+                className="mean-period"
+                x1={PROFILE_MARGIN.left}
+                x2={PROFILE_WIDTH - PROFILE_MARGIN.right}
+                y1={profileY(selected.periodMean)}
+                y2={profileY(selected.periodMean)}
+              />
+              <text
+                className="mean-period"
+                x={PROFILE_WIDTH - PROFILE_MARGIN.right + 7}
+                y={profileY(selected.periodMean) + 3.2}
+              >
+                period {selected.periodMean.toFixed(2)}
+              </text>
+              <text
+                className="mean-other"
+                x={PROFILE_WIDTH - PROFILE_MARGIN.right + 7}
+                y={profileY(selected.otherMean) + 3.2}
+              >
+                other {selected.otherMean.toFixed(2)}
+              </text>
+            </g>
+
+            <g className="profile-bars">
+              {selected.activations.map((value, index) => {
+                const isPeriod = periodSet.has(index);
+                const width = isPeriod ? periodBarWidth : barWidth;
+                const top = profileY(value);
+                return (
+                  <rect
+                    key={index}
+                    className={`${isPeriod ? "is-period" : ""} ${hoveredIndex === index ? "is-hovered" : ""}`.trim()}
+                    x={profileX(index, slot, width)}
+                    y={top}
+                    width={width}
+                    height={Math.max(0, baseline - top)}
+                  />
+                );
+              })}
+            </g>
+
+            {/* Period markers stay visible even where the feature is silent. */}
+            <g className="profile-period-marks" aria-hidden="true">
+              {selected.periods.map((index) => (
+                <line
+                  key={index}
+                  x1={profileX(index, slot, 0)}
+                  x2={profileX(index, slot, 0)}
+                  y1={baseline}
+                  y2={baseline + 5}
+                />
+              ))}
+            </g>
+
+            <g className="profile-hits">
+              {selected.activations.map((value, index) => (
+                <rect
+                  key={index}
+                  className="profile-hit"
+                  x={PROFILE_MARGIN.left + index * slot}
+                  y={PROFILE_MARGIN.top}
+                  width={slot}
+                  height={PROFILE_PLOT_HEIGHT}
+                  onPointerEnter={() => setHoveredIndex(index)}
+                  onPointerDown={() => setHoveredIndex(index)}
+                />
+              ))}
+            </g>
+
+            {hovered ? (
+              <g className="profile-tooltip" transform={`translate(${tooltipX} ${tooltipY})`} aria-hidden="true">
+                <rect width={tooltipWidth} height={TOOLTIP_HEIGHT} rx={3} />
+                <text x={10} y={19}>{hovered.lines[0]}</text>
+                <text className="tooltip-value" x={10} y={35}>{hovered.lines[1]}</text>
+              </g>
+            ) : null}
+          </svg>
           </div>
-          <p className="activation-maxima">Maximum activation: period {selected.periodMax.toFixed(2)} · other {selected.otherMax.toFixed(2)}</p>
         </div>
       </div>
-
-      <details className="paper-snapshot">
-        <summary>See every token in the selected paper example</summary>
-        {/* The source is a dense paper plot whose exact token labels should remain intact. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/per_token_31850_24_12.png" alt="Original per-token activation plot for AIME 2024 Problem 12" loading="lazy" />
-      </details>
 
       <figcaption>
         <span>Figure 2</span>
         <span>
-          Select any discovery prompt to compare period and non-period activations. The pooled period-to-other ratio across the six prompts is 5.3×.
+          Per-token activation of L22:F31850 in each of the six discovery prompts. One bar per token
+          position; orange bars are tokens whose decoded text ends in a period, and the tick below the
+          axis marks every such token even where the feature is silent. Dashed lines are the two class
+          means whose ratio is the number on the left; nonzero positions counts the token positions where
+          the feature clears its JumpReLU threshold. Pooled over the six prompts the ratio is{" "}
+          {pooledPeriodRatio.toFixed(1)}×.
         </span>
       </figcaption>
     </figure>
@@ -87,12 +328,74 @@ export function InteractiveActivationFigure() {
 }
 
 const slopeRows = [
-  { feature: "L22:F31850", predicted: 0.707, observed: 0.210, description: "Mathematical logic and proof" },
-  { feature: "L29:F60066", predicted: 1.800, observed: 0.192, description: "Mathematical exercises" },
-  { feature: "L32:F53761", predicted: 1.636, observed: 0.089, description: "General academic text" },
-  { feature: "L25:F20384", predicted: 0.351, observed: -0.064, description: "STEM question answering" },
-  { feature: "L7:F20827", predicted: 0.504, observed: -0.027, description: "Conversational openings" },
+  {
+    feature: "L22:F31850",
+    predicted: 0.707,
+    observed: 0.210,
+    recurrence: "5/6",
+    description: "Mathematical logic and proof",
+    evidence: [
+      { activation: 7.75, before: "…the usual identification $\\text{MCG}(T^2) \\cong \\text{SL}(2,\\mathbb{Z})$", token: ").", after: " For the trace +2 ones, the Seifert invariants are simply …" },
+      { activation: 7.6562, before: "…I want to show that M is isomorphic to the injective hull of V", token: "$.", after: " Any suggestion would be appreciated! Look at Theorem 3.52 in Lectures on Modules …" },
+      { activation: 7.625, before: "…where U is open in ℝⁿ, the set f(U) is open", token: ".", after: " I saw related questions where other users mention the invariance of domain theorem …" },
+    ],
+  },
+  {
+    feature: "L29:F60066",
+    predicted: 1.800,
+    observed: 0.192,
+    recurrence: "5/6",
+    description: "Mathematical exercises",
+    evidence: [
+      { activation: 4.7812, before: "…k(x) = 2√(x + 1) + 3, part (d) $\\left(−1, 3", token: "\\", after: "right)$" },
+      { activation: 4.75, before: "…a survey of interstellar Na I D1 and D2 absorption features in the spectra of", token: " ", after: "104 early-type stars in the second and third Galactic quadrants reveals …" },
+      { activation: 4.625, before: "…International Workshop on Operator Theory and its Applications, July", token: " ", after: "22–26, 2019, Instituto Superior Técnico, Lisbon, Portugal …" },
+    ],
+  },
+  {
+    feature: "L32:F53761",
+    predicted: 1.636,
+    observed: 0.089,
+    recurrence: "6/6",
+    description: "General academic text",
+    evidence: [
+      { activation: 4.1562, before: "…What Does Standard Error Mean Tell Us. What Does Standard Error Mean", token: " Tell", after: " Us. Contents. Thanks! Assumptions and usage …" },
+      { activation: 4.125, before: "…3 Sep 2013, 21:30, As Far As I Can See, 3 Jul 2013, 17:10, As Far", token: " As", after: " I Can See, 25 Jun 2013 …" },
+      { activation: 4.125, before: "…Department of Mechanical and Materials Engineering,", token: "Queen", after: "’s University, 130 Stuart Street, Kingston, Ontario …" },
+    ],
+  },
+  {
+    feature: "L25:F20384",
+    predicted: 0.351,
+    observed: -0.064,
+    recurrence: "6/6",
+    description: "STEM question answering",
+    evidence: [
+      { activation: 9.1875, before: "…Lecture 21: Basis and dimension of a vector space. Concepts:", token: " ", after: "1. Define a basis. 2. Recognize that any two bases have the same number of elements …" },
+      { activation: 8.875, before: "…https://wakelet.com/wake/vKSwmAqdYW7ptN-q5zMGQ https://wakelet", token: ".", after: "com/wake/xk-llQ1U97wL8m2Aog2qd …" },
+      { activation: 8.875, before: "…Stephen Mwinga, Philip Ayieko", token: ",", after: " Charles Opondo, Jalemba Aluvaala, Elesban Kihuba …" },
+    ],
+  },
+  {
+    feature: "L7:F20827",
+    predicted: 0.504,
+    observed: -0.027,
+    recurrence: "6/6",
+    description: "Conversational openings",
+    evidence: [
+      { activation: 31.5, before: "…Tehran, ISSN 2345-5853, online at https://cgasa.sbu.ac", token: ".", after: "ir. This journal is available open access …" },
+      { activation: 27.75, before: "…http://sage.math.canterbury.ac.nz/hom... http://sage.math.canterbury.ac", token: ".", after: "nz/hom... edit, retag, close, merge, delete …" },
+      { activation: 26.5, before: "…Chen L, Institute of Geology and Geophysics, lchen@mail.igcas.ac", token: ".", after: "cn, Chinese Academy of Sciences …" },
+    ],
+  },
 ];
+
+function visiblePeakToken(token: string) {
+  if (token === " ") return "␠ space";
+  if (token === "\n") return "↵ newline";
+  if (token === "\t") return "⇥ tab";
+  return token;
+}
 
 export function InteractiveSlopeAudit() {
   const [selectedFeature, setSelectedFeature] = useState("L22:F31850");
@@ -101,39 +404,93 @@ export function InteractiveSlopeAudit() {
   const ratio = selected.observed / selected.predicted;
 
   return (
-    <div className="slope-chart full-bleed interactive-slope" aria-label="Clickable comparison of Neumann-predicted and observed intervention slopes">
-      <div className="slope-legend">
-        <span><i className="predicted-key" /> Neumann predicted</span>
-        <span><i className="observed-key" /> observed intervention</span>
-        <span className="zero-key">Click a feature for exact values</span>
+    <figure className="candidate-audit full-bleed" aria-label="Interactive candidate feature evidence and intervention audit">
+      <header className="candidate-audit-heading">
+        <div>
+          <span>Candidate feature audit</span>
+          <strong>Semantic recurrence meets causal intervention</strong>
+        </div>
+        <p>Choose a feature to connect its automated label and top activations to the measured intervention.</p>
+      </header>
+
+      <div className="candidate-audit-layout">
+        <section className="candidate-audit-list" aria-label="Candidate features">
+          <div className="candidate-audit-legend" aria-hidden="true">
+            <span><i className="candidate-predicted-key" /> Neumann predicted</span>
+            <span><i className="candidate-observed-key" /> Observed intervention</span>
+          </div>
+          {slopeRows.map((row) => (
+            <button
+              type="button"
+              className={`candidate-audit-row ${selectedFeature === row.feature ? "is-selected" : ""}`}
+              key={row.feature}
+              aria-pressed={selectedFeature === row.feature}
+              onClick={() => setSelectedFeature(row.feature)}
+            >
+              <span className="candidate-audit-identity">
+                <code>{row.feature}</code>
+                <small>{row.description}</small>
+              </span>
+              <span className="candidate-recurrence"><b>{row.recurrence}</b> prompts</span>
+              <span className="candidate-slope-track" aria-hidden="true">
+                <i className="candidate-predicted-bar" style={{ width: `${(row.predicted / maxSlope) * 100}%` }} />
+                <i
+                  className={`candidate-observed-bar ${row.observed < 0 ? "is-negative" : ""}`}
+                  style={{ width: `${Math.max(0.8, (Math.abs(row.observed) / maxSlope) * 100)}%` }}
+                />
+              </span>
+              <span className="candidate-slope-values">
+                <span>{row.predicted.toFixed(3)}</span>
+                <strong>{row.observed > 0 ? "+" : ""}{row.observed.toFixed(3)}</strong>
+                <em>×{(row.observed / row.predicted).toFixed(2)}</em>
+              </span>
+            </button>
+          ))}
+        </section>
+
+        <section className="candidate-audit-evidence" aria-live="polite">
+          <div className="candidate-evidence-heading">
+            <div>
+              <span>Selected feature</span>
+              <h4>{selected.description}</h4>
+            </div>
+            <code>{selected.feature}</code>
+          </div>
+          <dl className="candidate-evidence-metrics">
+            <div><dt>Recurrence</dt><dd>{selected.recurrence}</dd></div>
+            <div><dt>Predicted</dt><dd>{selected.predicted.toFixed(3)}</dd></div>
+            <div><dt>Observed</dt><dd>{selected.observed > 0 ? "+" : ""}{selected.observed.toFixed(3)}</dd></div>
+            <div><dt>Observed / predicted</dt><dd>{ratio.toFixed(2)}</dd></div>
+          </dl>
+          <ol className="candidate-evidence-list">
+            {selected.evidence.map((item, index) => (
+              <li key={`${selected.feature}-${index}`}>
+                <span className="candidate-evidence-index">{String(index + 1).padStart(2, "0")}</span>
+                <p>
+                  {item.before}
+                  <mark className={`candidate-firing-token ${item.token.trim() ? "" : "is-whitespace"}`}>
+                    {item.token.trim() ? item.token : "␠"}
+                  </mark>
+                  {item.after}
+                </p>
+                <span className="candidate-evidence-meta">
+                  <span className="candidate-peak-token">
+                    <small>peak token</small>
+                    <code>{visiblePeakToken(item.token)}</code>
+                  </span>
+                  <strong>act {item.activation.toFixed(2)}</strong>
+                </span>
+              </li>
+            ))}
+          </ol>
+        </section>
       </div>
-      {slopeRows.map((row) => (
-        <button
-          type="button"
-          className={`slope-row ${selectedFeature === row.feature ? "selected-slope" : ""}`}
-          key={row.feature}
-          aria-pressed={selectedFeature === row.feature}
-          onClick={() => setSelectedFeature(row.feature)}
-        >
-          <code>{row.feature}</code>
-          <span className="slope-track">
-            <i className="predicted-bar" style={{ width: `${(row.predicted / maxSlope) * 100}%` }} />
-            <i className={`observed-bar ${row.observed < 0 ? "negative-bar" : ""}`} style={{ width: `${Math.max(0.3, (Math.abs(row.observed) / maxSlope) * 100)}%` }} />
-          </span>
-          <span className="slope-values">
-            <span>{row.predicted.toFixed(3)}</span>
-            <strong>{row.observed.toFixed(3)}</strong>
-          </span>
-          <span className="ratio-badge">× {(row.observed / row.predicted).toFixed(2)}</span>
-        </button>
-      ))}
-      <div className="slope-selection" aria-live="polite">
-        <div><strong>{selected.feature}</strong><span>{selected.description}</span></div>
-        <span>Predicted <b>{selected.predicted.toFixed(3)}</b></span>
-        <span>Observed <b>{selected.observed.toFixed(3)}</b></span>
-        <span>Observed / predicted <b>{ratio.toFixed(2)}</b></span>
-      </div>
-    </div>
+
+      <figcaption>
+        <span>Tables 4–5</span>
+        <p>Recurrent candidate features, source-backed top-activating OpenWebMath passages, and measured interventions. Each passage marks the exact peak token in orange; ␠ denotes a space token.</p>
+      </figcaption>
+    </figure>
   );
 }
 
@@ -166,12 +523,43 @@ const probabilityRows: ProbabilityRow[] = [
   { token: "Each", amplified: [0.24, 0.11, -0.13], reversed: [0.19, 0.22, 0.03] },
 ];
 
+// One shared scale for both directions so the smaller reversed shifts stay visibly smaller.
+const PROBABILITY_SCALE = Math.ceil(
+  Math.max(...probabilityRows.flatMap((row) => [Math.abs(row.amplified[2]), Math.abs(row.reversed[2])])),
+);
+const PROBABILITY_TICKS = [-20, -10, 0, 10, 20];
+
+function probabilityOffset(value: number) {
+  return `${50 + (value / PROBABILITY_SCALE) * 50}%`;
+}
+
+function ProbabilityAxis() {
+  return (
+    <div className="probability-axis" aria-hidden="true">
+      <span />
+      <span className="probability-axis-scale">
+        {PROBABILITY_TICKS.map((tick) => (
+          <span key={tick} style={{ left: probabilityOffset(tick) }}>
+            {tick > 0 ? `+${tick}` : tick}
+          </span>
+        ))}
+      </span>
+      <span className="probability-axis-unit">pp</span>
+    </div>
+  );
+}
+
 export function InteractiveProbabilityShift() {
   const [setting, setSetting] = useState<"amplified" | "reversed">("amplified");
   const [selectedToken, setSelectedToken] = useState("Since");
   const selected = probabilityRows.find((row) => row.token === selectedToken) ?? probabilityRows[0];
   const selectedValues = selected[setting];
-  const maxMagnitude = 21;
+
+  // Sorted per direction: the fixed order only ever matched the amplified column.
+  const ordered = useMemo(
+    () => [...probabilityRows].sort((a, b) => b[setting][2] - a[setting][2]),
+    [setting],
+  );
 
   return (
     <div className="probability-interactive">
@@ -179,10 +567,13 @@ export function InteractiveProbabilityShift() {
         <button type="button" aria-pressed={setting === "amplified"} onClick={() => setSetting("amplified")}>Amplified · ×3</button>
         <button type="button" aria-pressed={setting === "reversed"} onClick={() => setSetting("reversed")}>Reversed · ×−1</button>
       </div>
-      <div className="probability-axis" aria-hidden="true"><span>−20 pp</span><span>0</span><span>+20 pp</span></div>
+
+      <ProbabilityAxis />
+
       <div className="probability-rows">
-        {probabilityRows.map((row) => {
+        {ordered.map((row) => {
           const delta = row[setting][2];
+          const magnitude = `${(Math.abs(delta) / PROBABILITY_SCALE) * 50}%`;
           return (
             <button
               type="button"
@@ -193,9 +584,16 @@ export function InteractiveProbabilityShift() {
             >
               <code>{row.token}</code>
               <span className="probability-track">
+                {PROBABILITY_TICKS.map((tick) => (
+                  <span
+                    key={tick}
+                    className={tick === 0 ? "probability-zero" : "probability-gridline"}
+                    style={{ left: probabilityOffset(tick) }}
+                  />
+                ))}
                 <i
                   className={delta < 0 ? "negative-shift" : "positive-shift"}
-                  style={{ width: `${(Math.abs(delta) / maxMagnitude) * 50}%` }}
+                  style={{ width: magnitude }}
                 />
               </span>
               <strong>{delta > 0 ? "+" : ""}{delta.toFixed(2)}</strong>
@@ -203,6 +601,9 @@ export function InteractiveProbabilityShift() {
           );
         })}
       </div>
+
+      <ProbabilityAxis />
+
       <div className="probability-selection" aria-live="polite">
         <strong><code>{selected.token}</code></strong>
         <span>Clean <b>{selectedValues[0].toFixed(2)}%</b></span>
@@ -381,8 +782,8 @@ const accuracyRows: AccuracyRow[] = [
 type AccuracyMode = "absolute" | "change";
 
 function chartGeometry(width: number, height: number) {
-  const left = width < 520 ? 43 : 54;
-  return { left, right: 16, top: 22, bottom: 44, plotWidth: width - left - 16, plotHeight: height - 66 };
+  const left = width < 520 ? 40 : 48;
+  return { left, right: 14, top: 16, bottom: 36, plotWidth: width - left - 14, plotHeight: height - 52 };
 }
 
 export function InteractiveAccuracyFigure() {
@@ -400,7 +801,7 @@ export function InteractiveAccuracyFigure() {
     const holder = chartRef.current;
     if (!canvas || !holder) return;
     const width = holder.clientWidth;
-    const height = width < 520 ? 300 : 350;
+    const height = width < 520 ? 210 : 240;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = Math.round(width * dpr);
     canvas.height = Math.round(height * dpr);
@@ -421,7 +822,7 @@ export function InteractiveAccuracyFigure() {
     const font = styles.getPropertyValue("--sans").trim();
     const geometry = chartGeometry(width, height);
     const x = (problem: number) => geometry.left + (problem / 29) * geometry.plotWidth;
-    const yMin = mode === "absolute" ? 0 : -18;
+    const yMin = mode === "absolute" ? 0 : -14;
     const yMax = mode === "absolute" ? 100 : 30;
     const y = (value: number) => geometry.top + ((yMax - value) / (yMax - yMin)) * geometry.plotHeight;
     const yTicks = mode === "absolute" ? [0, 25, 50, 75, 100] : [-10, 0, 10, 20, 30];
@@ -445,10 +846,10 @@ export function InteractiveAccuracyFigure() {
     [0, 5, 10, 15, 20, 25, 29].forEach((tick) => {
       context.fillStyle = muted;
       context.textAlign = "center";
-      context.fillText(String(tick), x(tick), height - 25);
+      context.fillText(String(tick), x(tick), height - 21);
     });
     context.fillStyle = ink;
-    context.fillText("Problem", geometry.left + geometry.plotWidth / 2, height - 7);
+    context.fillText("Problem", geometry.left + geometry.plotWidth / 2, height - 6);
 
     const series = mode === "absolute"
       ? [
@@ -463,7 +864,7 @@ export function InteractiveAccuracyFigure() {
 
     series.forEach((seriesItem) => {
       context.strokeStyle = seriesItem.color;
-      context.lineWidth = 1.65;
+      context.lineWidth = 1.45;
       context.beginPath();
       rows.forEach((row, index) => {
         const value = mode === "absolute" ? row[seriesItem.key] : row[seriesItem.key] - row.vanilla;
@@ -476,7 +877,7 @@ export function InteractiveAccuracyFigure() {
         const value = mode === "absolute" ? row[seriesItem.key] : row[seriesItem.key] - row.vanilla;
         context.beginPath();
         context.fillStyle = seriesItem.color;
-        context.arc(x(row.problem), y(value), row.problem === selectedProblem ? 4.6 : 2.7, 0, Math.PI * 2);
+        context.arc(x(row.problem), y(value), row.problem === selectedProblem ? 4 : 2.2, 0, Math.PI * 2);
         context.fill();
         if (row.problem === selectedProblem) {
           context.strokeStyle = ink;

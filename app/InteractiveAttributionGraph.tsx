@@ -812,14 +812,14 @@ export default function InteractiveAttributionGraph() {
       ) : <p className="probe-load-state">Extracting a browser-sized view from the original graph…</p>}
 
       <figcaption>
-        <span>Figure 1</span>
-        <span>
-          The article&apos;s AIME graph plus five interactive signed direct-effect subgraphs extracted from
-          the original Hugging Face <code>.pt</code> files. Every graph keeps exactly 100 feature neurons:
-          13 signed direct-effect anchors and the 87 strongest one-hop feature sources available from
-          those rows. Token embeddings and output logits are shown in addition. These are faithful
-          browser-sized projections, not complete dense graphs or recomputed Neumann rankings.
-        </span>
+        <span>Figure 1.</span>
+        <p>
+          Interactive attribution graphs for six reasoning and factual prompts. The horizontal axis
+          follows token position: input tokens appear along the bottom, target continuation logits at
+          the top, and active CLT features at the layer and token position where they activate. Select
+          a prompt or node to inspect its direct-effect neighborhood; green and purple highlight
+          positive and negative signed edges.
+        </p>
       </figcaption>
     </figure>
   );
