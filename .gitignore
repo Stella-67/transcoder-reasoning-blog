@@ -16,7 +16,6 @@
 # next.js
 /.next/
 /.vinext/
-/out/
 
 # misc
 .DS_Store
@@ -38,4 +37,3 @@ yarn-error.log*
 /.wrangler/
 /outputs/
 /work/
-/out/
